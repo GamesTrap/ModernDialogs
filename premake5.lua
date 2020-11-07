@@ -1,6 +1,6 @@
 workspace "ModernFileDialogs"
 architecture "x86_64"
-	startproject "ModernFileDialogs"
+	startproject "Example"
 
 	configurations
 	{
@@ -23,14 +23,14 @@ project "ModernFileDialogs"
 	cppdialect "C++17"
 	systemversion "latest"
 
-	targetdir ("../bin/" .. outputdir .. "/%{prj.group}/%{prj.name}")
-	objdir ("../bin-int/" .. outputdir .. "/%{prj.group}/%{prj.name}")
+	targetdir ("bin/" .. outputdir .. "/%{prj.group}/%{prj.name}")
+	objdir ("bin-int/" .. outputdir .. "/%{prj.group}/%{prj.name}")
 
 	--Add all source and header files
 	files
 	{
-		"**.hpp",
-		"**.cpp"
+		"ModernFileDialogs/**.h",
+		"ModernFileDialogs/**.cpp"
 	}
 
 	filter "configurations:Debug"
@@ -49,19 +49,19 @@ project "Example"
 	cppdialect "C++17"
 	systemversion "latest"
 
-	targetdir ("../bin/" .. outputdir .. "/%{prj.group}/%{prj.name}")
-	objdir ("../bin-int/" .. outputdir .. "/%{prj.group}/%{prj.name}")
+	targetdir ("bin/" .. outputdir .. "/%{prj.group}/%{prj.name}")
+	objdir ("bin-int/" .. outputdir .. "/%{prj.group}/%{prj.name}")
 
 	--Add all source and header files
 	files
 	{
-		"**.hpp",
-		"**.cpp"
+		"Example/**.h",
+		"Example/**.cpp"
 	}
 
 	includedirs
 	{
-		"../ModernFileDialogs/"
+		"ModernFileDialogs/"
 	}
 
 	links

@@ -9,7 +9,7 @@
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/GamesTrap/ModernFileDialogs)](https://github.com/GamesTrap/ModernFileDialogs/pulls?q=is%3Aopen+is%3Apr)
 [![GitHub](https://img.shields.io/github/license/GamesTrap/ModernFileDialogs)](https://github.com/GamesTrap/ModernFileDialogs/blob/master/LICENSE)
 
-ModernFileDialogs (Cross-platform C++)
+ModernFileDialogs (Cross-platform C++17)
 MessageBox, OpenFileDialog, SaveFileDialog & SelectFolderDialog  
 ASCII UTF-8
 
