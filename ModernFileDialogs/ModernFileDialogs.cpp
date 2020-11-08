@@ -418,6 +418,18 @@ bool QarmaPresent()
 
 //-------------------------------------------------------------------------------------------------------------------//
 
+bool YadPresent()
+{
+	static int32_t yadPresent = -1;
+	
+	if(yadPresent < 0)
+		yadPresent = DetectPresence("yad");
+		
+	return yadPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
 int32_t KDialogPresent()
 {
 	static int32_t kdialogPresent = -1;
@@ -634,6 +646,33 @@ std::string SaveFile(const std::string& title,
 		}
 		dialogString += " --file-selection --save --confirm-overwrite";
 		
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!defaultPathAndFile.empty())
+			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
+		if(!filterPatterns.empty())
+		{
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					int32_t index = 0;
+					while((index = extensions.find(';')) != std::string::npos)
+						extensions.replace(index, 3, " | ");
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+				}
+			}
+		}
+		if(allFiles)
+			dialogString += " --file-filter='All Files | *'";
+		dialogString += " 2>/dev/null ";
+	}
+	else if(YadPresent())
+	{
+		dialogString = "yad --file-selection --save --confirm-overwrite";
 		if(!title.empty())
 			dialogString += " --title=\"" + title + "\"";
 		if(!defaultPathAndFile.empty())
