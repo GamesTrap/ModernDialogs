@@ -253,7 +253,9 @@ std::string SaveFileWinGUI(const std::string& title,
 
 //Linux land
 #else
-#include <iostream>
+
+std::string Python3Name;
+	
 bool DetectPresence(const std::string& executable)
 {
 	std::string buffer;
@@ -426,6 +428,87 @@ bool YadPresent()
 		yadPresent = DetectPresence("yad");
 		
 	return yadPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool XDialogPresent()
+{
+	static int32_t xdialogPresent = -1;
+	
+	if(xdialogPresent < 0)
+		xdialogPresent = DetectPresence("Xdialog");
+		
+	return xdialogPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool Python3Present()
+{
+	static int32_t python3Present = -1;
+	
+	if(python3Present < 0)
+	{
+		python3Present = 0;
+		Python3Name = "python3";
+		if(DetectPresence(Python3Name))
+			python3Present = 1;
+		else
+		{
+			for(uint32_t i = 9; i >= 0; i--)
+			{
+				Python3Name = "python3." + std::to_string(i);
+				if(DetectPresence(Python3Name))
+				{
+					python3Present = 1;
+					break;
+				}
+			}
+		}
+	}
+	
+	return python3Present;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool TryCommand(const std::string& command)
+{
+	std::string buffer;
+	buffer.resize(MaxPathOrCMD);
+	FILE* in;
+	
+	in = popen(command.data(), "r");
+	if(fgets(buffer.data(), buffer.size(), in) == nullptr)
+	{
+		pclose(in);
+		return true;
+	}
+	
+	pclose(in);
+	return false;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool TKinter3Present()
+{
+	static int32_t tkinter3Present = -1;
+	std::string pythonCommand;
+	std::string pythonParams = "-S -c \"try:\n\timport tkinter;\nexcept:\n\tprint(0);\"";
+	
+	if(tkinter3Present < 0)
+	{
+		tkinter3Present = 0;
+		if(Python3Present())
+		{
+			pythonCommand = Python3Name + " " + pythonParams;
+			tkinter3Present = TryCommand(pythonCommand);
+		}
+	}
+	
+	return tkinter3Present && GraphicMode() && !(IsDarwin() && std::getenv("SSH_TTY"));
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -661,7 +744,7 @@ std::string SaveFile(const std::string& title,
 					std::string extensions = filterPatterns[i].second;
 					int32_t index = 0;
 					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 3, " | ");
+						extensions.replace(index, 1, " | ");
 					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
 				}
 			}
@@ -688,7 +771,7 @@ std::string SaveFile(const std::string& title,
 					std::string extensions = filterPatterns[i].second;
 					int32_t index = 0;
 					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 3, " | ");
+						extensions.replace(index, 1, " | "); 
 					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
 				}
 			}
@@ -696,6 +779,44 @@ std::string SaveFile(const std::string& title,
 		if(allFiles)
 			dialogString += " --file-filter='All Files | *'";
 		dialogString += " 2>/dev/null ";
+	}
+	else if(!XDialogPresent() && TKinter3Present())
+	{
+		dialogString = Python3Name + " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
+		dialogString += "res=filedialog.asksaveasfilename(";
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+		if(!defaultPathAndFile.empty())
+		{
+			std::string str = GetPathWithoutFinalSlash(defaultPathAndFile);
+			if(!str.empty())
+				dialogString += "initialdir='" + str + "',";
+			str = GetLastName(defaultPathAndFile);
+			if(!str.empty())
+				dialogString += "initialfile='" + str + "',";
+		}
+		if(!filterPatterns.empty() && filterPatterns[0].second[filterPatterns[0].second.size() - 1] != '*')
+		{
+			dialogString += "filetypes=(";
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += "('" + filterPatterns[i].first + "',('" + filterPatterns[i].second + "',)),";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					int32_t index = 0;
+					while((index = extensions.find(';')) != std::string::npos)
+						extensions.replace(index, 1, "','");
+					dialogString += "('" + filterPatterns[i].first + "',('" + extensions + "',)),";
+				}
+			}
+		}
+		if(allFiles && !filterPatterns.empty())
+			dialogString += "('All Files','*'))";
+		else if(!allFiles && !filterPatterns.empty())
+			dialogString += ")";
+		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
 	}
 
 	FILE* in;
