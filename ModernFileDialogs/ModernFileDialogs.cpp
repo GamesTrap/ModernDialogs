@@ -253,6 +253,29 @@ std::string SaveFileWinGUI(const std::string& title,
 
 //Linux land
 #else
+#include <iostream>
+bool DetectPresence(const std::string& executable)
+{
+	std::string buffer;
+	buffer.resize(MaxPathOrCMD);
+	FILE* in;
+	
+	std::string testedString = "which " + executable + " 2>/dev/null ";
+	in = popen(testedString.data(), "r");
+	if((fgets(buffer.data(), buffer.size(), in) != nullptr)
+		&& (buffer.find_first_of(':') == std::string::npos) && (buffer.find("no ") == std::string::npos))
+	{
+		pclose(in);
+		return true;
+	}
+	else
+	{
+		pclose(in);
+		return false;
+	}
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
 
 bool DirExists(const std::string& dirPath)
 {
@@ -268,6 +291,110 @@ bool DirExists(const std::string& dirPath)
 	
 	closedir(dir);
 	return true;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool GetEnvDISPLAY()
+{
+	return std::getenv("DISPLAY");
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool IsDarwin()
+{
+	static int32_t isDarwin = -1;
+	struct utsname lUtsname;
+	
+	if (isDarwin < 0)
+		isDarwin = !uname(&lUtsname) && std::string(lUtsname.sysname) == "Darwin";
+	
+	return isDarwin;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool GraphicMode()
+{
+	return (GetEnvDISPLAY() || (IsDarwin() && (!std::getenv("SSH_TTY") || GetEnvDISPLAY())));
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool XPropPresent()
+{
+	static int32_t xpropPresent = -1;
+	
+	if (xpropPresent < 0)
+		xpropPresent = DetectPresence("xprop");
+
+	return xpropPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool ZenityPresent()
+{
+	static int32_t zenityPresent = -1;
+	
+	if (zenityPresent < 0)
+		zenityPresent = DetectPresence("zenity");
+
+	return zenityPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+int32_t KDialogPresent()
+{
+	static int32_t kdialogPresent = -1;
+	std::string buffer;
+	buffer.resize(MaxPathOrCMD);
+	FILE* in;
+	std::string desktop;
+	
+	if(kdialogPresent < 0)
+	{
+		if(ZenityPresent())
+		{
+			auto desktopEnv = std::getenv("XDG_SESSION_DESKTOP");
+			if(!desktopEnv)
+			{
+				desktopEnv = std::getenv("XDG_CURRENT_DESKTOP");
+				if(!desktopEnv)
+				{
+					desktopEnv = std::getenv("DESKTOP_SESSION");
+					
+					if(!desktopEnv)
+					{
+						kdialogPresent = 0;
+						return kdialogPresent;
+					}
+				}
+			}
+			desktop = std::string(desktopEnv);
+			if(desktop.empty() || ((desktop != "KDE" || desktop != "kde") && (desktop != "lxqt" || desktop != "LXQT")))
+			{
+				kdialogPresent = 0;
+				return kdialogPresent;
+			}
+		}
+
+		kdialogPresent = DetectPresence("kdialog");
+		if(kdialogPresent && !std::getenv("SSH_TTY"))
+		{
+			in = popen("kdialog --attach 2>&1", "r");
+			if(fgets(buffer.data(), buffer.size(), in) != nullptr)
+			{
+				if (buffer.find("Unknown") == std::string::npos)
+					kdialogPresent = 2;
+			}
+			pclose(in);
+		}
+	}
+
+	return GraphicMode() ? kdialogPresent : 0;
 }
 
 #endif
@@ -370,7 +497,63 @@ std::string SaveFile(const std::string& title,
 	path = SaveFileWinGUI(title, defaultPathAndFile, filterPatterns, allFiles);
 	buffer = path;
 #else
-	//Linux TODO
+	//Linux TODO	
+	std::string dialogString;
+	if(KDialogPresent())
+	{
+		dialogString = "kdialog";
+		if (KDialogPresent() == 2 && XPropPresent())
+			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		dialogString += " --getsavefilename ";
+
+		if (!defaultPathAndFile.empty())
+		{
+			if (defaultPathAndFile[0] != '/')
+				dialogString += "$PWD/";
+			dialogString += "\"" + defaultPathAndFile + "\"";
+		}
+		else
+			dialogString += "$PWD/";
+
+		if(!filterPatterns.empty())
+		{
+			dialogString += " \"" + filterPatterns[0].first + " (" + filterPatterns[0].second + ")\n";
+			for(uint32_t i = 1; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += filterPatterns[i].first + " (" + filterPatterns[i].second + ")\n";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					std::replace(extensions.begin(), extensions.end(), ';', ' ');
+					dialogString += filterPatterns[i].first + " (" + extensions + ")\n";
+				}
+			}
+		}
+		if(allFiles && filterPatterns.empty())
+			dialogString += "\"All Files (*.*)\"";
+		else if(allFiles && !filterPatterns.empty())
+			dialogString += "All Files (*.*)\"";
+		else if(!allFiles && !filterPatterns.empty())
+		{
+			dialogString.pop_back();
+			dialogString += "\"";
+		}
+		if(!title.empty())
+			dialogString += " --title \"" + title + "\"";
+	}
+
+	FILE* in;
+	if(!(in = popen(dialogString.data(), "r")))
+		return {};
+	buffer.resize(MaxPathOrCMD);
+	while (fgets(buffer.data(), buffer.size(), in) != nullptr){}
+	pclose(in);
+	if (buffer[buffer.length() - 1] == '\n')
+		buffer.pop_back();
+	if (buffer.empty())
+		return {};
+	path = buffer;
 #endif
 
 	if (path.empty())

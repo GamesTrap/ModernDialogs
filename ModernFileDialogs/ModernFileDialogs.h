@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Jan "GamesTrap" Schürkamp
+Copyright (c) 2020 Jan "GamesTrap" SchÃ¼rkamp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,8 @@ SOFTWARE.
 #include <vector>
 
 //TODO Document
+//TODO Multiple filters under the same name should be splitted by ';'s
+//TODO Example: {"SomeFile", "*.SF;*.SomeFile}
 std::string SaveFile(const std::string& title,
                      const std::string& defaultPathAndFile = "",
                      const std::vector<std::pair<std::string, std::string>>& filterPatterns = {},
