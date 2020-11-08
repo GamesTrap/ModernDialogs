@@ -346,6 +346,78 @@ bool ZenityPresent()
 
 //-------------------------------------------------------------------------------------------------------------------//
 
+int32_t Zenity3Present()
+{
+	static int32_t zenity3Present = -1;
+	FILE* in;
+	std::string buffer;
+	buffer.resize(MaxPathOrCMD);
+	
+	if(zenity3Present < 0)
+	{
+		zenity3Present = 0;
+		if(ZenityPresent())
+		{
+			in = popen("zenity --version", "r");
+			if(fgets(buffer.data(), buffer.size(), in) != nullptr)
+			{
+				if(std::stoi(buffer) >= 3)
+				{
+					zenity3Present = 3;
+					int32_t temp = std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2));
+					if(temp >= 18)
+						zenity3Present = 5;
+					else if(temp >= 10)
+						zenity3Present = 4;
+				}
+				else if((std::stoi(buffer) == 2) && (std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2)) >= 32))
+					zenity3Present = 2;
+			}
+			pclose(in);
+		}
+	}
+	
+	return GraphicMode() ? zenity3Present : 0;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool MateDialogPresent()
+{
+	static int32_t matedialogPresent = -1;
+	
+	if(matedialogPresent < 0)
+		matedialogPresent = DetectPresence("matedialog");
+		
+	return matedialogPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool ShellementaryPresent()
+{
+	static int32_t shellementaryPresent = -1;
+	
+	if(shellementaryPresent < 0)
+		shellementaryPresent = DetectPresence("shellementary");
+		
+	return shellementaryPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool QarmaPresent()
+{
+	static int32_t qarmaPresent = -1;
+	
+	if(qarmaPresent < 0)
+		qarmaPresent = DetectPresence("qarma");
+		
+	return qarmaPresent && GraphicMode();
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
 int32_t KDialogPresent()
 {
 	static int32_t kdialogPresent = -1;
@@ -517,8 +589,8 @@ std::string SaveFile(const std::string& title,
 
 		if(!filterPatterns.empty())
 		{
-			dialogString += " \"" + filterPatterns[0].first + " (" + filterPatterns[0].second + ")\n";
-			for(uint32_t i = 1; i < filterPatterns.size(); i++)
+			dialogString += " \"";
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
 			{
 				if(filterPatterns[i].second.find(';') == std::string::npos)
 					dialogString += filterPatterns[i].first + " (" + filterPatterns[i].second + ")\n";
@@ -541,6 +613,50 @@ std::string SaveFile(const std::string& title,
 		}
 		if(!title.empty())
 			dialogString += " --title \"" + title + "\"";
+	}
+	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
+	{
+		if(ZenityPresent())
+		{
+			dialogString = "zenity ";
+			if(Zenity3Present() >= 4 && !std::getenv("SSH_TTY") && XPropPresent())
+				dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		else if(MateDialogPresent())
+			dialogString = "matedialog";
+		else if(ShellementaryPresent())
+			dialogString = "shellementary";
+		else
+		{
+			dialogString = "qarma";
+			if(!std::getenv("SSH_TTY") && XPropPresent())
+				dialogString += " --attach$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		dialogString += " --file-selection --save --confirm-overwrite";
+		
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!defaultPathAndFile.empty())
+			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
+		if(!filterPatterns.empty())
+		{
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					int32_t index = 0;
+					while((index = extensions.find(';')) != std::string::npos)
+						extensions.replace(index, 3, " | ");
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+				}
+			}
+		}
+		if(allFiles)
+			dialogString += " --file-filter='All Files | *'";
+		dialogString += " 2>/dev/null ";
 	}
 
 	FILE* in;
