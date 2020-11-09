@@ -1,6 +1,6 @@
 # ModernFileDialogs
 
-[![Build Status](https://travis-ci.com/GamesTrap/ModernFileDialogs.svg?branch=master)](https://travis-ci.com/GamesTrap/ModernFileDialogs)
+[![Build Status](   https://travis-ci.com/GamesTrap/ModernFileDialogs.svg?branch=main)](https://travis-ci.com/GamesTrap/ModernFileDialogs)
 [![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/GamesTrap/ModernFileDialogs)](https://github.com/GamesTrap/ModernFileDialogs)
 [![GitHub repo size](https://img.shields.io/github/repo-size/GamesTrap/ModernFileDialogs)](https://github.com/GamesTrap/ModernFileDialogs)
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/GamesTrap/ModernFileDialogs?include_prereleases)](https://github.com/GamesTrap/ModernFileDialogs/releases)

@@ -36,4 +36,29 @@ std::string SaveFile(const std::string& title,
                      const std::vector<std::pair<std::string, std::string>>& filterPatterns = {},
                      bool allFiles = true);
 
+//-------------------------------------------------------------------------------------------------------------------//
+//
+//TODO Document
+//TODO Multiple filters under the same name should be splitted by ';'s
+//TODO Example: {"SomeFile", "*.SF;*.SomeFile}
+std::vector<std::string> OpenFile(const std::string& title,
+                                  const std::string& defaultPathAndFile = "",
+                                  const std::vector<std::pair<std::string, std::string>>& filterPatterns = {},
+                                  bool allowMultipleSelects = false,
+                                  bool allFiles = true);
+
+//TODO Document
+//TODO Single file alias for OpenFile
+std::string OpenSingleFile(const std::string& title,
+                           const std::string& defaultPathAndFile = "",
+                           const std::vector<std::pair<std::string, std::string>>& filterPatterns = {},
+                           bool allFiles = true);
+
+//TODO Document
+//TODO Multi file alias for OpenFile
+std::vector<std::string> OpenMultipleFiles(const std::string& title,
+							               const std::string& defaultPathAndFile = "",
+							               const std::vector<std::pair<std::string, std::string>>& filterPatterns = {},
+							               bool allFiles = true);
+
 #endif /*_GAMESTRAP_MODERNFILEDIALOGS_H_*/

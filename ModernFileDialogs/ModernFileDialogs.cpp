@@ -138,6 +138,27 @@ bool DirExists(const std::string& dirPath)
 
 //-------------------------------------------------------------------------------------------------------------------//
 
+bool FileExists(const std::string& filePathAndName)
+{
+	struct _stat info;
+
+	if (filePathAndName.empty())
+		return false;
+
+	std::wstring temp = UTF8To16(filePathAndName);
+	const int32_t statRet = _wstat(temp.data(), &info);
+	
+	if (statRet != 0)
+		return false;
+	
+	if (info.st_mode & _S_IFREG)
+		return true;
+	
+	return false;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
 std::wstring SaveFileW(const std::wstring& title,
                        const std::wstring& defaultPathAndFile,
                        const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
@@ -251,6 +272,146 @@ std::string SaveFileWinGUI(const std::string& title,
 
 //-------------------------------------------------------------------------------------------------------------------//
 
+std::vector<std::wstring> OpenFileW(const std::wstring& title,
+                                    const std::wstring& defaultPathAndFile,
+                                    const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
+                                    const bool allowMultipleSelects,
+                                    const bool allFiles)
+{
+	HRESULT hResult = CoInitializeEx(nullptr, 0);
+
+	static std::wstring buffer;
+	
+	std::wstring dirName = GetPathWithoutFinalSlashW(defaultPathAndFile);
+	buffer = GetLastNameW(defaultPathAndFile);
+
+	if (allowMultipleSelects)
+		buffer.resize(MaxMultipleFiles * MaxPathOrCMD + 1);
+	else
+		buffer.resize(MaxPathOrCMD + 1);
+	
+	std::wstring filterPatternsStr;
+	if (!filterPatterns.empty())
+	{
+		if (filterPatterns[0].first.empty())
+		{
+			filterPatternsStr += filterPatterns[0].second + L'\n';
+			filterPatternsStr += filterPatterns[0].second;
+		}
+		else
+			filterPatternsStr += filterPatterns[0].first + L"(" + filterPatterns[0].second + L")\n" + filterPatterns[0].second;
+		for (uint32_t i = 1; i < filterPatterns.size(); i++)
+		{
+			if (filterPatterns[i].first.empty())
+			{
+				filterPatternsStr += L'\n' + filterPatterns[i].second;
+				filterPatternsStr += L'\n' + filterPatterns[i].second;
+			}
+			else
+				filterPatternsStr += L'\n' + filterPatterns[i].first + L"(" + filterPatterns[i].second + L")\n" + filterPatterns[i].second;
+		}
+		filterPatternsStr += L'\n';
+		if (allFiles)
+			filterPatternsStr += L"All Files\n*.*\n";
+		else
+			filterPatternsStr += L'\n';
+	}
+	else
+		filterPatternsStr = L"All Files\n*.*\n";
+
+	std::replace(filterPatternsStr.begin(), filterPatternsStr.end(), L'\n', L'\0');
+	
+	OPENFILENAMEW ofn;
+	std::memset(&ofn, 0, sizeof(OPENFILENAMEW));
+	ofn.lStructSize = sizeof(OPENFILENAMEW);
+	ofn.hwndOwner = GetForegroundWindow();
+	ofn.hInstance = nullptr;
+	ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.data();
+	ofn.lpstrCustomFilter = nullptr;
+	ofn.nMaxCustFilter = 0;
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFile = buffer.data();
+	
+	ofn.nMaxFile = static_cast<uint32_t>(buffer.size());
+	ofn.lpstrFileTitle = nullptr;
+	ofn.nMaxFileTitle = MaxPathOrCMD / 2;
+	ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.data();
+	ofn.lpstrTitle = title.empty() ? nullptr : title.data();
+	ofn.Flags = OFN_EXPLORER | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	ofn.nFileOffset = 0;
+	ofn.nFileExtension = 0;
+	ofn.lpstrDefExt = nullptr;
+	ofn.lCustData = 0L;
+	ofn.lpfnHook = nullptr;
+	ofn.lpTemplateName = nullptr;
+	if (allowMultipleSelects)
+		ofn.Flags |= OFN_ALLOWMULTISELECT;
+
+	std::vector<std::wstring> paths{};
+	if (!GetOpenFileNameW(&ofn))
+		buffer = {};
+	else
+	{
+		if (allowMultipleSelects)
+		{
+			std::wstring folder;
+			do
+			{
+				auto x = buffer.find_first_of(L'\0');
+				std::wstring s = buffer.substr(0, x);
+
+				if (folder.empty())
+					folder = s + L"\\";
+				else
+					paths.push_back(folder + s);
+
+				buffer = buffer.substr(x + 1, buffer.size() - (x + 1));
+			} while (buffer[0] != L'\0');
+		}
+		else
+			paths.push_back(buffer);
+	}
+
+	if (hResult == S_OK || hResult == S_FALSE)
+		CoUninitialize();
+
+	return paths;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+std::vector<std::string> OpenFileWinGUI(const std::string& title,
+                                        const std::string& defaultPathAndFile,
+                                        const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+                                        const bool allowMultipleSelects,
+                                        const bool allFiles)
+{
+	std::wstring wTitle;
+	std::wstring wDefaultPathAndFile;
+	
+	std::vector<std::pair<std::wstring, std::wstring>> wFilterPatterns(filterPatterns.size());
+	for(uint32_t i = 0; i < wFilterPatterns.size(); i++)
+		wFilterPatterns[i] = { UTF8To16(filterPatterns[i].first), UTF8To16(filterPatterns[i].second) };
+
+	if (!title.empty())
+		wTitle = UTF8To16(title);
+	if (!defaultPathAndFile.empty())
+		wDefaultPathAndFile = UTF8To16(defaultPathAndFile);
+
+	std::vector<std::wstring> wPaths = OpenFileW(wTitle, wDefaultPathAndFile, wFilterPatterns, allowMultipleSelects, allFiles);
+
+	if (wPaths.empty())
+		return {};
+
+	std::vector<std::string> paths(wPaths.size());
+	for (uint32_t i = 0; i < paths.size(); i++)
+		paths[i] = UTF16To8(wPaths[i]);
+
+	return paths;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
 //Linux land
 #else
 
@@ -319,7 +480,7 @@ bool IsDarwin()
 
 bool GraphicMode()
 {
-	return (GetEnvDISPLAY() || (IsDarwin() && (!std::getenv("SSH_TTY") || GetEnvDISPLAY())));
+	return (GetEnvDISPLAY() || (IsDarwin() && GetEnvDISPLAY()));
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -432,18 +593,6 @@ bool YadPresent()
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-bool XDialogPresent()
-{
-	static int32_t xdialogPresent = -1;
-	
-	if(xdialogPresent < 0)
-		xdialogPresent = DetectPresence("Xdialog");
-		
-	return xdialogPresent && GraphicMode();
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
 bool Python3Present()
 {
 	static int32_t python3Present = -1;
@@ -508,7 +657,7 @@ bool TKinter3Present()
 		}
 	}
 	
-	return tkinter3Present && GraphicMode() && !(IsDarwin() && std::getenv("SSH_TTY"));
+	return tkinter3Present && GraphicMode() && !IsDarwin());
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -549,7 +698,7 @@ int32_t KDialogPresent()
 		}
 
 		kdialogPresent = DetectPresence("kdialog");
-		if(kdialogPresent && !std::getenv("SSH_TTY"))
+		if(kdialogPresent)
 		{
 			in = popen("kdialog --attach 2>&1", "r");
 			if(fgets(buffer.data(), buffer.size(), in) != nullptr)
@@ -664,7 +813,6 @@ std::string SaveFile(const std::string& title,
 	path = SaveFileWinGUI(title, defaultPathAndFile, filterPatterns, allFiles);
 	buffer = path;
 #else
-	//Linux TODO	
 	std::string dialogString;
 	if(KDialogPresent())
 	{
@@ -714,7 +862,7 @@ std::string SaveFile(const std::string& title,
 		if(ZenityPresent())
 		{
 			dialogString = "zenity ";
-			if(Zenity3Present() >= 4 && !std::getenv("SSH_TTY") && XPropPresent())
+			if(Zenity3Present() >= 4 && XPropPresent())
 				dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
 		}
 		else if(MateDialogPresent())
@@ -724,7 +872,7 @@ std::string SaveFile(const std::string& title,
 		else
 		{
 			dialogString = "qarma";
-			if(!std::getenv("SSH_TTY") && XPropPresent())
+			if(XPropPresent())
 				dialogString += " --attach$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
 		}
 		dialogString += " --file-selection --save --confirm-overwrite";
@@ -780,7 +928,7 @@ std::string SaveFile(const std::string& title,
 			dialogString += " --file-filter='All Files | *'";
 		dialogString += " 2>/dev/null ";
 	}
-	else if(!XDialogPresent() && TKinter3Present())
+	else if(TKinter3Present())
 	{
 		dialogString = Python3Name + " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
 		dialogString += "res=filedialog.asksaveasfilename(";
@@ -842,4 +990,68 @@ std::string SaveFile(const std::string& title,
 		return {};
 	
 	return path;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+std::vector<std::string> OpenFile(const std::string& title,
+                                  const std::string& defaultPathAndFile,
+                                  const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+                                  const bool allowMultipleSelects,
+                                  const bool allFiles)
+{
+	if (QuoteDetected(title))
+		return OpenFile("INVALID TITLE WITH QUOTES", defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	if (QuoteDetected(defaultPathAndFile))
+		return OpenFile(title, "INVALID DEFAULT_PATH WITH QUOTES", filterPatterns, allowMultipleSelects, allFiles);
+	for(const auto& filter : filterPatterns)
+	{
+		if (QuoteDetected(filter.first) || QuoteDetected(filter.second))
+			return OpenFile("INVALID FILTER_PATTERN WITH QUOTES", defaultPathAndFile, {}, allowMultipleSelects, allFiles);
+	}
+
+	std::vector<std::string> paths;
+#ifdef _WIN32
+	paths = OpenFileWinGUI(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+
+	if (paths.empty())
+		return {};
+	if (allowMultipleSelects && paths.size() <= 2)
+	{
+		for(const auto& path : paths)
+		{
+			if (!FileExists(path))
+				return {};
+		}
+	}
+	else if (!FileExists(paths[0]))
+		return {};
+
+#else
+	//Linux TODO
+#endif
+	
+	return paths;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+std::string OpenSingleFile(const std::string& title,
+                           const std::string& defaultPathAndFile,
+                           const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+                           const bool allFiles)
+{
+	std::vector<std::string> path = OpenFile(title, defaultPathAndFile, filterPatterns, false, allFiles);
+	return path.empty() ? std::string() : path[0];
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+std::vector<std::string> OpenMultipleFiles(const std::string& title,
+                              const std::string& defaultPathAndFile,
+                              const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+                              const bool allFiles)
+{
+	const std::vector<std::string> paths = OpenFile(title, defaultPathAndFile, filterPatterns, true, allFiles);
+	return paths.empty() ? std::vector<std::string>() : paths;
 }
