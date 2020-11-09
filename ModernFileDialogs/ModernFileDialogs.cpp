@@ -657,7 +657,7 @@ bool TKinter3Present()
 		}
 	}
 	
-	return tkinter3Present && GraphicMode() && !IsDarwin());
+	return tkinter3Present && GraphicMode() && !IsDarwin();
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -711,6 +711,23 @@ int32_t KDialogPresent()
 	}
 
 	return GraphicMode() ? kdialogPresent : 0;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+bool FileExists(const std::string& filePathAndName)
+{
+	FILE* in;
+	
+	if(filePathAndName.empty())
+		return false;
+		
+	in = fopen(filePathAndName.data(), "r");
+	if(!in)
+		return false;
+		
+	fclose(in);
+	return true;
 }
 
 #endif
@@ -993,7 +1010,7 @@ std::string SaveFile(const std::string& title,
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
-
+#include <iostream>
 std::vector<std::string> OpenFile(const std::string& title,
                                   const std::string& defaultPathAndFile,
                                   const std::vector<std::pair<std::string, std::string>>& filterPatterns,
@@ -1013,23 +1030,119 @@ std::vector<std::string> OpenFile(const std::string& title,
 	std::vector<std::string> paths;
 #ifdef _WIN32
 	paths = OpenFileWinGUI(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+#else
+	//Linux TODO
+	std::string dialogString;
+	bool wasKDialog = false;
+	if(KDialogPresent())
+	{
+		wasKDialog = true;
+		dialogString = "kdialog ";
+		if(KDialogPresent() == 2 && XPropPresent())
+			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		dialogString += " --getopenfilename ";
+		if(allowMultipleSelects)
+			dialogString += "--multiple --separate-output ";
+		if(!defaultPathAndFile.empty())
+		{
+			if(defaultPathAndFile[0] != '/')
+				dialogString += "$PWD/";
+			dialogString += "\"" + defaultPathAndFile + "\"";
+		}
+		else
+			dialogString += "$PWD/";
+			
+		if(!filterPatterns.empty())
+		{
+			dialogString += " \"";
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += filterPatterns[i].first + " (" + filterPatterns[i].second + ")\n";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					std::replace(extensions.begin(), extensions.end(), ';', ' ');
+					dialogString += filterPatterns[i].first + " (" + extensions + ")\n";
+				}
+			}
+		}
+		if(allFiles && filterPatterns.empty())
+			dialogString += "\"All Files (*.*)\"";
+		else if(allFiles && !filterPatterns.empty())
+			dialogString += "All Files (*.*)\"";
+		else if(!allFiles && !filterPatterns.empty())
+		{
+			dialogString.pop_back();
+			dialogString += "\"";
+		}
+		if(!title.empty())
+			dialogString += " --title \"" + title + "\"";
+	}
+	
+	std::string buffer;
+	if (allowMultipleSelects)
+		buffer.resize(MaxMultipleFiles * MaxPathOrCMD + 1);
+	else
+		buffer.resize(MaxPathOrCMD + 1);
+	
+	FILE* in;
+	if(!(in = popen(dialogString.data(), "r")))
+	{
+		buffer = {};
+		return {};
+	}
+	uint64_t offset = 0;
+	while(fgets(buffer.data() + offset, buffer.size() - offset, in) != nullptr)
+	{
+		uint64_t off = 0;
+		for(const char& c : buffer)
+		{
+			if(c == '\0')
+				break;
+			off++;
+		}
+		offset += off;
+	}
+	pclose(in);
+	uint32_t off = 0;
+	for(const auto& c : buffer)
+	{
+		if(c == '\0')
+			break;
+		off++;
+	}
+	buffer.resize(off);
+	
+	if(buffer[buffer.size() - 1] == '\n')
+		buffer[buffer.size() - 1] = '\0';
+		
+	if(wasKDialog && allowMultipleSelects)
+	{
+		std::size_t pos = 0;
+		while((pos = buffer.find('\n')) != std::string::npos)
+		{
+			std::string token = buffer.substr(0, pos);
+			paths.push_back(token);
+			buffer.erase(0, pos + 1);
+		}
+	}
+	else if(!allowMultipleSelects)
+		paths.push_back(buffer);
+#endif
 
 	if (paths.empty())
 		return {};
-	if (allowMultipleSelects && paths.size() <= 2)
+	if (allowMultipleSelects && paths.size() > 1)
 	{
-		for(const auto& path : paths)
+		for(const auto& p : paths)
 		{
-			if (!FileExists(path))
+			if (!FileExists(p))
 				return {};
 		}
 	}
 	else if (!FileExists(paths[0]))
 		return {};
-
-#else
-	//Linux TODO
-#endif
 	
 	return paths;
 }
