@@ -1034,7 +1034,7 @@ std::vector<std::string> OpenFile(const std::string& title,
 	//Linux TODO
 	std::string dialogString;
 	bool wasKDialog = false;
-	/*if(KDialogPresent())
+	if(KDialogPresent())
 	{
 		wasKDialog = true;
 		dialogString = "kdialog ";
@@ -1079,7 +1079,7 @@ std::vector<std::string> OpenFile(const std::string& title,
 		if(!title.empty())
 			dialogString += " --title \"" + title + "\"";
 	}
-	else*/ if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
+	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
 	{
 		if(ZenityPresent())
 		{
@@ -1117,6 +1117,35 @@ std::vector<std::string> OpenFile(const std::string& title,
 					int32_t index = 0;
 					while((index = extensions.find(';')) != std::string::npos)
 						extensions.replace(index, 1, " | ");
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+				}
+			}
+		}
+		if(allFiles)
+			dialogString += " --file-filter='All Files | *'";
+		dialogString += " 2>/dev/null ";
+	}
+	else if(YadPresent())
+	{
+		dialogString = "yad --file-selection";
+		if(allowMultipleSelects)
+			dialogString += " --multiple";
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!defaultPathAndFile.empty())
+			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
+		if(!filterPatterns.empty())
+		{
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					int32_t index = 0;
+					while((index = extensions.find(';')) != std::string::npos)
+						extensions.replace(index, 1, " | "); 
 					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
 				}
 			}
