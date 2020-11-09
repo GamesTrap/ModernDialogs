@@ -1034,7 +1034,7 @@ std::vector<std::string> OpenFile(const std::string& title,
 	//Linux TODO
 	std::string dialogString;
 	bool wasKDialog = false;
-	if(KDialogPresent())
+	/*if(KDialogPresent())
 	{
 		wasKDialog = true;
 		dialogString = "kdialog ";
@@ -1079,6 +1079,52 @@ std::vector<std::string> OpenFile(const std::string& title,
 		if(!title.empty())
 			dialogString += " --title \"" + title + "\"";
 	}
+	else*/ if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
+	{
+		if(ZenityPresent())
+		{
+			dialogString = "zenity";
+			if(Zenity3Present() >= 4 && XPropPresent())
+				dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		else if(MateDialogPresent())
+			dialogString = "matedialog";
+		else if(ShellementaryPresent())
+			dialogString = "shellementary";
+		else
+		{
+			dialogString = "qarma";
+			if(XPropPresent())
+				dialogString += " --attach=$(xprop --root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		dialogString += " --file-selection";
+		
+		if(allowMultipleSelects)
+			dialogString += " --multiple";
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!defaultPathAndFile.empty())
+			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
+		if(!filterPatterns.empty())
+		{
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					int32_t index = 0;
+					while((index = extensions.find(';')) != std::string::npos)
+						extensions.replace(index, 1, " | ");
+					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+				}
+			}
+		}
+		if(allFiles)
+			dialogString += " --file-filter='All Files | *'";
+		dialogString += " 2>/dev/null ";
+	}
 	
 	std::string buffer;
 	if (allowMultipleSelects)
@@ -1092,8 +1138,8 @@ std::vector<std::string> OpenFile(const std::string& title,
 		buffer = {};
 		return {};
 	}
-	uint64_t offset = 0;
-	while(fgets(buffer.data() + offset, buffer.size() - offset, in) != nullptr)
+	char* data = buffer.data();
+	while(fgets(data, &buffer[buffer.size() - 1] - data, in) != nullptr)
 	{
 		uint64_t off = 0;
 		for(const char& c : buffer)
@@ -1102,7 +1148,7 @@ std::vector<std::string> OpenFile(const std::string& title,
 				break;
 			off++;
 		}
-		offset += off;
+		data = buffer.data() + off;
 	}
 	pclose(in);
 	uint32_t off = 0;
@@ -1119,8 +1165,20 @@ std::vector<std::string> OpenFile(const std::string& title,
 		
 	if(wasKDialog && allowMultipleSelects)
 	{
+		buffer += '\n';
 		std::size_t pos = 0;
 		while((pos = buffer.find('\n')) != std::string::npos)
+		{
+			std::string token = buffer.substr(0, pos);
+			paths.push_back(token);
+			buffer.erase(0, pos + 1);
+		}
+	}
+	else if(allowMultipleSelects)
+	{
+		buffer += '|';
+		std::size_t pos = 0;
+		while((pos = buffer.find('|')) != std::string::npos)
 		{
 			std::string token = buffer.substr(0, pos);
 			paths.push_back(token);
