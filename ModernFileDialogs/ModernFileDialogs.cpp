@@ -1031,7 +1031,6 @@ std::vector<std::string> OpenFile(const std::string& title,
 #ifdef _WIN32
 	paths = OpenFileWinGUI(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 #else
-	//Linux TODO
 	std::string dialogString;
 	bool wasKDialog = false;
 	if(KDialogPresent())
@@ -1154,6 +1153,48 @@ std::vector<std::string> OpenFile(const std::string& title,
 			dialogString += " --file-filter='All Files | *'";
 		dialogString += " 2>/dev/null ";
 	}
+	else if(TKinter3Present())
+	{
+		dialogString = Python3Name + " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
+		dialogString += "lFiles=filedialog.askopenfilename(";
+		if(allowMultipleSelects)
+			dialogString += "multiple=1,";
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+		if(!defaultPathAndFile.empty())
+		{
+			std::string tmp;
+			tmp = GetPathWithoutFinalSlash(defaultPathAndFile);
+			if(!tmp.empty())
+				dialogString += "initialdir='" + tmp + "',";
+			tmp = GetLastName(defaultPathAndFile);
+			if(!tmp.empty())
+				dialogString += "initialfile='" + tmp + "',";
+		}
+		if(!filterPatterns.empty() && filterPatterns[0].second[filterPatterns[0].second.size() - 1] != '*')
+		{
+			dialogString += "filetypes=(";
+			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			{
+				if(filterPatterns[i].second.find(';') == std::string::npos)
+					dialogString += "('" + filterPatterns[i].first + "',('" + filterPatterns[i].second + "',)),";
+				else
+				{
+					std::string extensions = filterPatterns[i].second;
+					int32_t index = 0;
+					while((index = extensions.find(';')) != std::string::npos)
+						extensions.replace(index, 1, "','");
+					dialogString += "('" + filterPatterns[i].first + "',('" + extensions + "',)),";
+				}
+			}
+		}
+		if(allFiles && !filterPatterns.empty())
+			dialogString += "('All Files','*'))";
+		else if(!allFiles && !filterPatterns.empty())
+			dialogString += ")";
+		dialogString += ");\nif not isinstance(lFiles, tuple):\n\tprint(lFiles)\nelse:\n\tlFilesString=''\n\t";
+		dialogString += "for lFile in lFiles:\n\t\tlFilesString+=str(lFile)+'|'\n\tprint(lFilesString[:-1])\n\"";
+	}
 	
 	std::string buffer;
 	if (allowMultipleSelects)
@@ -1222,10 +1263,10 @@ std::vector<std::string> OpenFile(const std::string& title,
 		return {};
 	if (allowMultipleSelects && paths.size() > 1)
 	{
-		for(const auto& p : paths)
+		for(auto it = paths.begin(); it != paths.end(); it++)
 		{
-			if (!FileExists(p))
-				return {};
+			if(!FileExists(*it))
+				it = paths.erase(it);
 		}
 	}
 	else if (!FileExists(paths[0]))
