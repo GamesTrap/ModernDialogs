@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Jan "GamesTrap" Schürkamp
+Copyright (c) 2020 Jan "GamesTrap" SchÃ¼rkamp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1426,8 +1426,55 @@ std::string SelectFolder(const std::string& title, const std::string& defaultPat
 	if (QuoteDetected(defaultPath))
 		return SelectFolder(title, "INVALID DEFAULT_PATH WITH QUOTES");
 
-	std::string path = SelectFolderWinGUI(title, defaultPath);
+	std::string path;
+#ifdef _WIN32
+	path = SelectFolderWinGUI(title, defaultPath);
 	buffer = path;
+#else
+	//TODO Linux
+	buffer.resize(MaxPathOrCMD);
+	std::string dialogString;
+	if(KDialogPresent())
+	{
+		dialogString = "kdialog";
+		if(KDialogPresent() == 2 && XPropPresent())
+			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		dialogString += " --getexistingdirectory ";
+		
+		if(!defaultPath.empty())
+		{
+			if(defaultPath[0] != '/')
+				dialogString += "$PWD/";
+			dialogString += "\"" + defaultPath + "\"";
+		}
+		else
+			dialogString += "$PWD/";
+			
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+	/
+	
+	FILE* in;
+	if(!(in = popen(dialogString.data(), "r")))
+		return {};
+	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+	{}
+	uint32_t off = 0;
+	for(const auto& c : buffer)
+	{
+		if(c == '\0')
+			break;
+		off++;
+	}
+	buffer.resize(off);
+	
+	if(buffer[buffer.size() - 1] == '\n')
+		buffer[buffer.size() - 1] = '\0';
+		
+	if(!DirExists(buffer))
+		return {};
+	path = buffer;
+#endif
 
 	if (path.empty())
 		return {};
