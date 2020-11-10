@@ -35,7 +35,6 @@ SOFTWARE.
 #include <shlobj.h>
 #include <conio.h>
 #include <direct.h>
-#define SLASH "\\"
 #else
 #include <limits.h>
 #include <unistd.h>
@@ -43,7 +42,6 @@ SOFTWARE.
 #include <termios.h>
 #include <sys/utsname.h>
 #include <signal.h>
-#define SLASH "/"
 #endif
 
 //-------------------------------------------------------------------------------------------------------------------//

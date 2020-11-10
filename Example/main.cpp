@@ -26,8 +26,8 @@ SOFTWARE.
 
 #include <ModernFileDialogs.h>
 
-//#define SaveFileExamples 1
-//#define OpenFileExamples 1
+#define SaveFileExamples 1
+#define OpenFileExamples 1
 #define SelectFolderExamples 1
 
 int main()
