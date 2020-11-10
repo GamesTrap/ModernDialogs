@@ -1479,6 +1479,15 @@ std::string SelectFolder(const std::string& title, const std::string& defaultPat
 			dialogString += " --filename=\"" + defaultPath + "\"";
 		dialogString += " 2>/dev/null ";
 	}
+	else if(YadPresent())
+	{
+		dialogString = "yad --file-selection --directory";
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!defaultPath.empty())
+			dialogString += " --filename=\"" + defaultPath + "\"";
+		dialogString += " 2>/dev/null ";
+	}
 	
 	FILE* in;
 	if(!(in = popen(dialogString.data(), "r")))
