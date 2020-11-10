@@ -1488,6 +1488,17 @@ std::string SelectFolder(const std::string& title, const std::string& defaultPat
 			dialogString += " --filename=\"" + defaultPath + "\"";
 		dialogString += " 2>/dev/null ";
 	}
+	else if(TKinter3Present())
+	{
+		dialogString = Python3Name;
+		dialogString += " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
+		dialogString += "res=filedialog.askdirectory(";
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+		if(!defaultPath.empty())
+			dialogString += "initialdir='" + defaultPath + "'";
+		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
+	}
 	
 	FILE* in;
 	if(!(in = popen(dialogString.data(), "r")))
