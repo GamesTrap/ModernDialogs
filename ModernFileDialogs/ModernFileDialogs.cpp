@@ -1452,7 +1452,33 @@ std::string SelectFolder(const std::string& title, const std::string& defaultPat
 			
 		if(!title.empty())
 			dialogString += " --title=\"" + title + "\"";
-	/
+	}
+	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
+	{
+		if(ZenityPresent())
+		{
+			dialogString = "zenity";
+			if(Zenity3Present() >= 4 && XPropPresent())
+				dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		else if(MateDialogPresent())
+			dialogString = "matedialog";
+		else if(ShellementaryPresent())
+			dialogString = "shellementary";
+		else
+		{
+			dialogString = "qarma";
+			if(XPropPresent())
+				dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		dialogString += " --file-selection --directory";
+		
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!defaultPath.empty())
+			dialogString += " --filename=\"" + defaultPath + "\"";
+		dialogString += " 2>/dev/null ";
+	}
 	
 	FILE* in;
 	if(!(in = popen(dialogString.data(), "r")))
