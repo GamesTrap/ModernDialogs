@@ -61,4 +61,9 @@ std::vector<std::string> OpenMultipleFiles(const std::string& title,
 							               const std::vector<std::pair<std::string, std::string>>& filterPatterns = {},
 							               bool allFiles = true);
 
+//-------------------------------------------------------------------------------------------------------------------//
+
+//TODO Document
+std::string SelectFolder(const std::string& title, const std::string& defaultPath = "");
+
 #endif /*_GAMESTRAP_MODERNFILEDIALOGS_H_*/

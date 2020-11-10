@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2020 Jan "GamesTrap" Schürkamp
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include "ModernFileDialogs.h"
 
 #include <algorithm>
@@ -155,6 +179,44 @@ bool FileExists(const std::string& filePathAndName)
 		return true;
 	
 	return false;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM lParam)
+{
+	std::wstring buffer;
+	buffer.resize(255);
+	GetClassNameW(hwndChild, buffer.data(), buffer.size());
+	if(buffer == L"SysTreeView32")
+	{
+		HTREEITEM hNode = TreeView_GetSelection(hwndChild);
+		TreeView_EnsureVisible(hwndChild, hNode);
+		return FALSE;
+	}
+	
+	return TRUE;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+int32_t BrowseCallbackProcW(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
+{
+	switch(uMsg)
+	{
+	case BFFM_INITIALIZED:
+		SendMessage(hwnd, BFFM_SETSELECTIONW, TRUE, static_cast<LPARAM>(pData));
+		break;
+
+	case BFFM_SELCHANGED:
+		EnumChildWindows(hwnd, BrowseCallbackProcWEnum, 0);
+		break;
+		
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -408,6 +470,62 @@ std::vector<std::string> OpenFileWinGUI(const std::string& title,
 		paths[i] = UTF16To8(wPaths[i]);
 
 	return paths;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+std::wstring SelectFolderW(const std::wstring& title, const std::wstring& defaultPath)
+{
+	static std::wstring buffer;
+	buffer.resize(MaxPathOrCMD);
+
+	HRESULT hResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+	BROWSEINFOW info;
+	std::memset(&info, 0, sizeof(BROWSEINFOW));
+
+	info.hwndOwner = GetForegroundWindow();
+	info.pidlRoot = nullptr;
+	info.pszDisplayName = buffer.data();
+	info.lpszTitle = title.empty() ? nullptr : title.data();
+	if (hResult == S_OK || hResult == S_FALSE)
+		info.ulFlags = BIF_USENEWUI;
+	info.lpfn = BrowseCallbackProcW;
+	info.lParam = reinterpret_cast<LPARAM>(defaultPath.data());
+	info.iImage = -1;
+
+	std::wstring retVal;
+	LPITEMIDLIST lpItem = SHBrowseForFolderW(&info);
+	if(lpItem)
+	{
+		SHGetPathFromIDListW(lpItem, buffer.data());
+		retVal = buffer;
+	}
+
+	if (hResult == S_OK || hResult == S_FALSE)
+		CoUninitialize();
+
+	return retVal;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+std::string SelectFolderWinGUI(const std::string& title, const std::string& defaultPath)
+{
+	std::wstring wTitle;
+	std::wstring wDefaultPath;
+	
+	if (!title.empty())
+		wTitle = UTF8To16(title);
+	if (!defaultPath.empty())
+		wDefaultPath = UTF8To16(defaultPath);
+
+	const std::wstring wPath = SelectFolderW(wTitle, wDefaultPath);
+
+	if (wPath.empty())
+		return {};
+
+	return UTF16To8(wPath);
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -1295,4 +1413,24 @@ std::vector<std::string> OpenMultipleFiles(const std::string& title,
 {
 	const std::vector<std::string> paths = OpenFile(title, defaultPathAndFile, filterPatterns, true, allFiles);
 	return paths.empty() ? std::vector<std::string>() : paths;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+std::string SelectFolder(const std::string& title, const std::string& defaultPath)
+{
+	static std::string buffer;
+
+	if (QuoteDetected(title))
+		return SelectFolder("INVALID TITLE WITH QUOTES", defaultPath);
+	if (QuoteDetected(defaultPath))
+		return SelectFolder(title, "INVALID DEFAULT_PATH WITH QUOTES");
+
+	std::string path = SelectFolderWinGUI(title, defaultPath);
+	buffer = path;
+
+	if (path.empty())
+		return {};
+
+	return path;
 }
