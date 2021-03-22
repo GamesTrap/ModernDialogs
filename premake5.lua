@@ -1,17 +1,18 @@
 workspace "ModernFileDialogs"
-architecture "x86_64"
-	startproject "Example"
+	configurations { "Debug32", "Release32", "Debug64", "Release64" }
 
-	configurations
-	{
-		"Debug",
-		"Release"
-	}
+	startproject "Example"
 
 	flags
 	{
 		"MultiProcessorCompile"
 	}
+
+	filter "configurations:*32"
+    	architecture "x86"
+
+    filter "configurations:*64"
+    	architecture "x86_64"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
@@ -33,11 +34,11 @@ project "ModernFileDialogs"
 		"ModernFileDialogs/**.cpp"
 	}
 
-	filter "configurations:Debug"
+	filter "configurations:Debug*"
 		runtime "Debug"
 		symbols "On"
 
-	filter "configurations:Release"
+	filter "configurations:Release*"
 		runtime "Release"
 		optimize "On"
 
@@ -69,10 +70,10 @@ project "Example"
 		"ModernFileDialogs"
 	}
 
-	filter "configurations:Debug"
+	filter "configurations:Debug*"
 		runtime "Debug"
 		symbols "On"
 
-	filter "configurations:Release"
+	filter "configurations:Release*"
 		runtime "Release"
 		optimize "On"

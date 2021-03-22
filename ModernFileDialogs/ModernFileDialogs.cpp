@@ -198,7 +198,7 @@ BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM lParam)
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-int32_t BrowseCallbackProcW(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
+int32_t CALLBACK BrowseCallbackProcW(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
 {
 	switch(uMsg)
 	{
@@ -1106,7 +1106,15 @@ std::string SaveFile(const std::string& title,
 	buffer.resize(MaxPathOrCMD);
 	while (fgets(buffer.data(), buffer.size(), in) != nullptr){}
 	pclose(in);
-	if (buffer[buffer.length() - 1] == '\n')
+	uint32_t off = 0;
+	for(const auto& c : buffer)
+	{
+		if(c == '\0')
+			break;
+		off++;
+	}
+	buffer.resize(off);
+	if (buffer[buffer.size() - 1] == '\n')
 		buffer.pop_back();
 	if (buffer.empty())
 		return {};
@@ -1347,7 +1355,7 @@ std::vector<std::string> OpenFile(const std::string& title,
 	buffer.resize(off);
 	
 	if(buffer[buffer.size() - 1] == '\n')
-		buffer[buffer.size() - 1] = '\0';
+		buffer.pop_back();
 		
 	if(wasKDialog && allowMultipleSelects)
 	{
@@ -1513,7 +1521,7 @@ std::string SelectFolder(const std::string& title, const std::string& defaultPat
 	buffer.resize(off);
 	
 	if(buffer[buffer.size() - 1] == '\n')
-		buffer[buffer.size() - 1] = '\0';
+		buffer.pop_back();
 		
 	if(!DirExists(buffer))
 		return {};
