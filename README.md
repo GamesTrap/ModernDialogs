@@ -17,6 +17,36 @@ This README will be updated with more info eventually.
 
 Screenshots for Windows 10 20H2 & Linux (Ubuntu 20.10) TBD...
 
+## Screenshots
+
+Windows 10 20H2:  
+
+OpenFile:
+<br>
+<img alt="OpenFileWindows" src="Images/OpenFileWindows.PNG" width="473px" height="261px">
+<br>
+SaveFile:
+<br>
+<img alt="SaveFileWindows" src="Images/SaveFileWindows.PNG" width="473px" height="261px">
+<br>
+SelectFolder:
+<br>
+<img alt="SelectFolderWindows" src="Images/SelectFolderWindows.PNG" width="320px" height="396px">
+
+Ubuntu 20.10 X11 Gnome 3:  
+
+OpenFile:
+<br>
+<img alt="OpenFileLinux" src="Images/OpenFileLinux.PNG" width="508px" height="328px">
+<br>
+SaveFile:
+<br>
+<img alt="SaveFileLinux" src="Images/SaveFileLinux.PNG" width="508px" height="328px">
+<br>
+SelectFolder:
+<br>
+<img alt="SelectFolderLinux" src="Images/SelectFolderLinux.PNG" width="508px" height="328px">
+
 ## Setup
 
 First clone the repository with `git clone https://github.com/GamesTrap/ModernFileDialogs`.
