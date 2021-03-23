@@ -21,7 +21,7 @@ matrix:
       script:
         - chmod +x libs/premake5/linux/premake5
         - libs/premake5/linux/premake5 gmake2
-        - make
+        - make config=debug64 all
     - os: windows
       filter_secrets: false
       env: 

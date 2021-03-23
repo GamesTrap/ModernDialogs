@@ -15,8 +15,6 @@ Supports ASCII & UTF-8
 
 This README will be updated with more info eventually.
 
-Screenshots for Windows 10 20H2 & Linux (Ubuntu 20.10) TBD...
-
 ## Screenshots
 
 Windows 10 20H2:  
