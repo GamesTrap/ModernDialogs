@@ -67,7 +67,7 @@ For example, run `premake gmake2` to generate the `Makefile` files.
 
 MIT License
 
-Copyright (c) 2020 Jan "GamesTrap" Schürkamp
+Copyright (c) 2020-2021 Jan "GamesTrap" Schürkamp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
