@@ -1,6 +1,6 @@
 # ModernDialogs
 
-[![Build Status](   https://travis-ci.com/GamesTrap/ModernDialogs.svg?branch=main)](https://travis-ci.com/GamesTrap/ModernFileDialogs)
+[![Build Status](https://travis-ci.com/GamesTrap/ModernFileDialogs.svg?branch=main)](https://travis-ci.com/GamesTrap/ModernFileDialogs)
 [![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernFileDialogs)
 [![GitHub repo size](https://img.shields.io/github/repo-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernFileDialogs)
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/GamesTrap/ModernDialogs?include_prereleases)](https://github.com/GamesTrap/ModernFileDialogs/releases)
@@ -51,7 +51,10 @@ SelectFolder:
 <br>
 MessageBox:
 <br>
-TBD
+<img alt="MsgBoxInfoWindows" src="Images/MsgBoxInfoWindows.PNG" width="163px" height="152px">
+<img alt="MsgBoxQuestionWindows" src="Images/MsgBoxQuestionWindows.PNG" width="163px" height="152px">
+<img alt="MsgBoxWarningWindows" src="Images/MsgBoxWarningWindows.PNG" width="211px" height="152px">
+<img alt="MsgBoxErrorWindows" src="Images/MsgBoxErrorWindows.PNG" width="211px" height="152px">
 
 Ubuntu 20.10 X11 Gnome 3:  
 
