@@ -924,10 +924,10 @@ bool QuoteDetected(const std::string_view str)
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::string SaveFile(const std::string& title,
-                     const std::string& defaultPathAndFile,
-                     const std::vector<std::pair<std::string, std::string>>& filterPatterns,
-                     const bool allFiles)
+std::string MFD::SaveFile(const std::string& title,
+                          const std::string& defaultPathAndFile,
+                          const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+                          const bool allFiles)
 {
 	static std::string buffer{};
 
@@ -1135,11 +1135,11 @@ std::string SaveFile(const std::string& title,
 
 //-------------------------------------------------------------------------------------------------------------------//
 #include <iostream>
-std::vector<std::string> OpenFile(const std::string& title,
-                                  const std::string& defaultPathAndFile,
-                                  const std::vector<std::pair<std::string, std::string>>& filterPatterns,
-                                  const bool allowMultipleSelects,
-                                  const bool allFiles)
+std::vector<std::string> MFD::OpenFile(const std::string& title,
+                                       const std::string& defaultPathAndFile,
+                                       const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+                                       const bool allowMultipleSelects,
+                                       const bool allFiles)
 {
 	if (QuoteDetected(title))
 		return OpenFile("INVALID TITLE WITH QUOTES", defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
@@ -1401,36 +1401,36 @@ std::vector<std::string> OpenFile(const std::string& title,
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::string OpenSingleFile(const std::string& title,
+std::string MFD::OpenSingleFile(const std::string& title,
                            const std::string& defaultPathAndFile,
                            const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                            const bool allFiles)
 {
-	std::vector<std::string> path = OpenFile(title, defaultPathAndFile, filterPatterns, false, allFiles);
+	std::vector<std::string> path = MFD::OpenFile(title, defaultPathAndFile, filterPatterns, false, allFiles);
 	return path.empty() ? std::string() : path[0];
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::vector<std::string> OpenMultipleFiles(const std::string& title,
+std::vector<std::string> MFD::OpenMultipleFiles(const std::string& title,
                               const std::string& defaultPathAndFile,
                               const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                               const bool allFiles)
 {
-	const std::vector<std::string> paths = OpenFile(title, defaultPathAndFile, filterPatterns, true, allFiles);
+	const std::vector<std::string> paths = MFD::OpenFile(title, defaultPathAndFile, filterPatterns, true, allFiles);
 	return paths.empty() ? std::vector<std::string>() : paths;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::string SelectFolder(const std::string& title, const std::string& defaultPath)
+std::string MFD::SelectFolder(const std::string& title, const std::string& defaultPath)
 {
 	static std::string buffer;
 
 	if (QuoteDetected(title))
-		return SelectFolder("INVALID TITLE WITH QUOTES", defaultPath);
+		return MFD::SelectFolder("INVALID TITLE WITH QUOTES", defaultPath);
 	if (QuoteDetected(defaultPath))
-		return SelectFolder(title, "INVALID DEFAULT_PATH WITH QUOTES");
+		return MFD::SelectFolder(title, "INVALID DEFAULT_PATH WITH QUOTES");
 
 	std::string path;
 #ifdef _WIN32

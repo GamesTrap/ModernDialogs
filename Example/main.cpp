@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Jan "GamesTrap" Schürkamp
+Copyright (c) 2020 Jan "GamesTrap" Schï¿½rkamp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,30 +33,30 @@ SOFTWARE.
 int main()
 {
 #ifdef SaveFileExamples
-	std::cout << SaveFile("TestTitle") << std::endl;
-	std::cout << SaveFile("TestTitle", "TestFile.Test") << std::endl;
-	std::cout << SaveFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"} }) << std::endl;
-	std::cout << SaveFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }) << std::endl;
-	std::cout << SaveFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }, false) << std::endl;
+	std::cout << MFD::SaveFile("TestTitle") << std::endl;
+	std::cout << MFD::SaveFile("TestTitle", "TestFile.Test") << std::endl;
+	std::cout << MFD::SaveFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"} }) << std::endl;
+	std::cout << MFD::SaveFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }) << std::endl;
+	std::cout << MFD::SaveFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }, false) << std::endl;
 #endif
 
 #ifdef OpenFileExamples
-	for (const auto& str : OpenFile("TestTitle"))
+	for (const auto& str : MFD::OpenFile("TestTitle"))
 		std::cout << str << std::endl;
-	for (const auto& str : OpenFile("TestTitle", "TestFile.Test"))
+	for (const auto& str : MFD::OpenFile("TestTitle", "TestFile.Test"))
 		std::cout << str << std::endl;
-	for (const auto& str : OpenFile("TestTitle", "TestFile.Test", {{"Test File", "*.Test;*.TS"}}))
+	for (const auto& str : MFD::OpenFile("TestTitle", "TestFile.Test", {{"Test File", "*.Test;*.TS"}}))
 		std::cout << str << std::endl;
-	for (const auto& str : OpenFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }))
+	for (const auto& str : MFD::OpenFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }))
 		std::cout << str << std::endl;
-	for (const auto& str : OpenFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }, true))
+	for (const auto& str : MFD::OpenFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }, true))
 		std::cout << str << std::endl;
-	for (const auto& str : OpenFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }, true, false))
+	for (const auto& str : MFD::OpenFile("TestTitle", "TestFile.Test", { {"Test File", "*.Test;*.TS"}, {"Another Test File", "*.ATS"} }, true, false))
 		std::cout << str << std::endl;
 #endif
 
 #ifdef SelectFolderExamples
-	std::cout << SelectFolder("TestTitle") << std::endl;
-	std::cout << SelectFolder("TestTitle", "TestPath") << std::endl;
+	std::cout << MFD::SelectFolder("TestTitle") << std::endl;
+	std::cout << MFD::SelectFolder("TestTitle", "TestPath") << std::endl;
 #endif
 }
