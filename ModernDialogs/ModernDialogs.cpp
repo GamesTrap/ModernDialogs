@@ -1037,7 +1037,7 @@ std::string MD::SaveFile(const std::string& title,
 			return SaveFile("INVALID FILTER_PATTERN WITH QUOTES", defaultPathAndFile, {}, allFiles);
 	}
 
-	std::string path;
+	std::string path{};
 #ifdef _WIN32
 	path = SaveFileWinGUI(title, defaultPathAndFile, filterPatterns, allFiles);
 	buffer = path;
@@ -1247,7 +1247,7 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 			return OpenFile("INVALID FILTER_PATTERN WITH QUOTES", defaultPathAndFile, {}, allowMultipleSelects, allFiles);
 	}
 
-	std::vector<std::string> paths;
+	std::vector<std::string> paths{};
 #ifdef _WIN32
 	paths = OpenFileWinGUI(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 #else
@@ -1528,7 +1528,7 @@ std::string MD::SelectFolder(const std::string& title, const std::string& defaul
 	if (QuoteDetected(defaultPath))
 		return MD::SelectFolder(title, "INVALID DEFAULT_PATH WITH QUOTES");
 
-	std::string path;
+	std::string path{};
 #ifdef _WIN32
 	path = SelectFolderWinGUI(title, defaultPath);
 	buffer = path;

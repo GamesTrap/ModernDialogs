@@ -31,7 +31,7 @@ On Linux the dialogs are created by using one of the following packages if insta
 - Yad
 - TKinter3
 
-If none of these packages is installed the functions will return a `MD::Selection::Error`.
+If none of these packages are installed then you will get an empty string, a vector of empty strings, or a `MD::Selection::Error` as the return value depending on the called function.
 
 ## Screenshots
 
