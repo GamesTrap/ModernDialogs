@@ -528,29 +528,6 @@ std::string SelectFolderWinGUI(const std::string& title, const std::string& defa
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-MD::Selection ShowMsgBoxWinGUI(const std::string& title,
-								const std::string& message,
-								const MD::Style style,
-								const MD::Buttons buttons)
-{
-	std::wstring wTitle;
-	std::wstring wMessage;
-
-	if(!title.empty())
-		wTitle = UTF8To16(title);
-	if(!message.empty())
-		wMessage = UTF8To16(message);
-
-	uint32_t flags = MB_TASKMODAL;
-
-	flags |= GetIcon(style);
-	flags |= GetButtons(buttons);
-
-	return GetSelection(MessageBoxW(nullptr, wMessage, wTitle, flags), buttons);
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
 MD::Selection GetSelection(const int32_t response, const MD::Buttons buttons)
 {
 	switch(response)
@@ -620,6 +597,29 @@ uint32_t GetButtons(const MD::Buttons buttons)
 	}
 
 	return MB_OK;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+MD::Selection ShowMsgBoxWinGUI(const std::string& title,
+	const std::string& message,
+	const MD::Style style,
+	const MD::Buttons buttons)
+{
+	std::wstring wTitle;
+	std::wstring wMessage;
+
+	if (!title.empty())
+		wTitle = UTF8To16(title);
+	if (!message.empty())
+		wMessage = UTF8To16(message);
+
+	uint32_t flags = MB_TASKMODAL;
+
+	flags |= GetIcon(style);
+	flags |= GetButtons(buttons);
+
+	return GetSelection(MessageBoxW(nullptr, wMessage.c_str(), wTitle.c_str(), flags), buttons);
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
