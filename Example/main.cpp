@@ -29,6 +29,40 @@ SOFTWARE.
 #define SaveFileExamples 1
 #define OpenFileExamples 1
 #define SelectFolderExamples 1
+#define MessageBoxExamples 1
+
+std::string PrintSelection(const MFD::Selection selection)
+{
+	switch(selection)
+	{
+
+	case MFD::Selection::Error:
+		return "Error";
+
+	case MFD::Selection::None:
+		return "None";
+
+	case MFD::Selection::Yes:
+		return "Yes";
+
+	case MFD::Selection::No:
+		return "No";
+
+	case MFD::Selection::Cancel:
+		return "Cancel";
+
+	case MFD::Selection::Quit:
+		return "Quit";
+
+	case MFD::Selection::OK:
+		return "OK";
+
+	default:
+		return "Error";
+	}
+
+	return "Error";
+}
 
 int main()
 {
@@ -58,5 +92,27 @@ int main()
 #ifdef SelectFolderExamples
 	std::cout << MFD::SelectFolder("TestTitle") << std::endl;
 	std::cout << MFD::SelectFolder("TestTitle", "TestPath") << std::endl;
+#endif
+
+#ifdef MessageBoxExamples
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Info, MFD::Buttons::OK)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Info, MFD::Buttons::OKCancel)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Info, MFD::Buttons::Quit)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Info, MFD::Buttons::YesNo)) << std::endl;
+
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Error, MFD::Buttons::OK)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Error, MFD::Buttons::OKCancel)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Error, MFD::Buttons::Quit)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Error, MFD::Buttons::YesNo)) << std::endl;
+
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Question, MFD::Buttons::OK)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Question, MFD::Buttons::OKCancel)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Question, MFD::Buttons::Quit)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Question, MFD::Buttons::YesNo)) << std::endl;
+
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Warning, MFD::Buttons::OK)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Warning, MFD::Buttons::OKCancel)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Warning, MFD::Buttons::Quit)) << std::endl;
+	std::cout << "Selected: " << PrintSelection(MFD::ShowMsgBox("Test Title", "Test Message\nSecond line", MFD::Style::Warning, MFD::Buttons::YesNo)) << std::endl;
 #endif
 }

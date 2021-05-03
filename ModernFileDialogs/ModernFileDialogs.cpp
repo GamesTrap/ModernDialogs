@@ -528,6 +528,102 @@ std::string SelectFolderWinGUI(const std::string& title, const std::string& defa
 
 //-------------------------------------------------------------------------------------------------------------------//
 
+MFD::Selection ShowMsgBoxWinGUI(const std::string& title,
+								const std::string& message,
+								const MFD::Style style,
+								const MFD::Buttons buttons)
+{
+	std::wstring wTitle;
+	std::wstring wMessage;
+
+	if(!title.empty())
+		wTitle = UTF8To16(title);
+	if(!message.empty())
+		wMessage = UTF8To16(message);
+
+	uint32_t flags = MB_TASKMODAL;
+
+	flags |= GetIcon(style);
+	flags |= GetButtons(buttons);
+
+	return GetSelection(MessageBoxW(nullptr, wMessage, wTitle, flags), buttons);
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+MFD::Selection GetSelection(const int32_t response, const MFD::Buttons buttons)
+{
+	switch(response)
+	{
+	case IDOK:
+		return buttons == MFD::Buttons::Quit ? MFD::Selection::Quit : MFD::Selection::OK;
+
+	case IDCANCEL:
+		return MFD::Selection::Cancel;
+
+	case IDYES:
+		return MFD::Selection::Yes;
+
+	case IDNO:
+		return MFD::Selection::No;
+
+	default:
+		return MFD::Selection::None;
+	}
+
+	return MFD::Selection::None;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+uint32_t GetIcon(const MFD::Style style)
+{
+	switch(style)
+	{
+	case MFD::Style::Info:
+		return MB_ICONINFORMATION;
+
+	case MFD::Style::Warning:
+		return MB_ICONWARNING;
+
+	case MFD::Style::Error:
+		return MB_ICONERROR;
+
+	case MFD::Style::Question:
+		return MB_ICONQUESTION;
+
+	default:
+		return MB_ICONINFORMATION;
+	}
+
+	return MB_ICONINFORMATION;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+uint32_t GetButtons(const MFD::Buttons buttons)
+{
+	switch(buttons)
+	{
+	case MFD::Buttons::OK:
+	case MFD::Buttons::Quit: //There's no 'Quit' button on Windows so use OK
+		return MB_OK;
+
+	case MFD::Buttons::OKCancel:
+		return MB_OKCANCEL;
+
+	case MFD::Buttons::YesNo:
+		return MB_YESNO;
+
+	default:
+		return MB_OK;
+	}
+
+	return MB_OK;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
 //Linux land
 #else
 
@@ -1437,7 +1533,6 @@ std::string MFD::SelectFolder(const std::string& title, const std::string& defau
 	path = SelectFolderWinGUI(title, defaultPath);
 	buffer = path;
 #else
-	//TODO Linux
 	buffer.resize(MaxPathOrCMD);
 	std::string dialogString;
 	if(KDialogPresent())
@@ -1446,7 +1541,7 @@ std::string MFD::SelectFolder(const std::string& title, const std::string& defau
 		if(KDialogPresent() == 2 && XPropPresent())
 			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
 		dialogString += " --getexistingdirectory ";
-		
+
 		if(!defaultPath.empty())
 		{
 			if(defaultPath[0] != '/')
@@ -1455,7 +1550,7 @@ std::string MFD::SelectFolder(const std::string& title, const std::string& defau
 		}
 		else
 			dialogString += "$PWD/";
-			
+
 		if(!title.empty())
 			dialogString += " --title=\"" + title + "\"";
 	}
@@ -1478,7 +1573,7 @@ std::string MFD::SelectFolder(const std::string& title, const std::string& defau
 				dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
 		}
 		dialogString += " --file-selection --directory";
-		
+
 		if(!title.empty())
 			dialogString += " --title=\"" + title + "\"";
 		if(!defaultPath.empty())
@@ -1532,4 +1627,243 @@ std::string MFD::SelectFolder(const std::string& title, const std::string& defau
 		return {};
 
 	return path;
+}
+
+//-------------------------------------------------------------------------------------------------------------------//
+
+MFD::Selection MFD::ShowMsgBox(const std::string& title,
+							   const std::string& message,
+							   const MFD::Style style,
+							   const MFD::Buttons buttons)
+{
+	std::string buffer;
+	buffer.resize(1024);
+	MFD::Selection selection = MFD::Selection::Error;
+
+	if (QuoteDetected(title))
+		return MFD::ShowMsgBox("INVALID TITLE WITH QUOTES", message, style, buttons);
+	if (QuoteDetected(message))
+		return MFD::ShowMsgBox(title, "INVALID DEFAULT_PATH WITH QUOTES", style, buttons);
+
+#ifdef _WIN32
+	selection = ShowMsgBoxWinGUI(title, message, style, buttons);
+#else
+	std::string dialogString;
+	if(KDialogPresent())
+	{
+		dialogString = "kdialog";
+		if (KDialogPresent() == 2 && XPropPresent())
+			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+
+		dialogString += " --";
+		if (buttons == MFD::Buttons::OKCancel || buttons == MFD::Buttons::YesNo)
+		{
+			if (style == MFD::Style::Warning || style == MFD::Style::Error)
+				dialogString += "warning";
+            dialogString += "yesno";
+		}
+		else if (style == MFD::Style::Error)
+			dialogString += "error";
+		else if (style == MFD::Style::Warning)
+			dialogString += "sorry";
+		else
+			dialogString += "msgbox";
+		dialogString += " \"";
+		if (!message.empty())
+			dialogString += message;
+		dialogString += "\"";
+		if (buttons == MFD::Buttons::OKCancel)
+			dialogString += " --yes-label OK --no-label Cancel";
+        if (buttons == MFD::Buttons::Quit)
+            dialogString += " --ok-label Quit";
+		if (!title.empty())
+			dialogString += " --title \"" + title + "\"";
+
+		dialogString += ";if [ $? = 0 ];then echo 1;else echo 0;fi";
+	}
+	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
+	{
+		if(ZenityPresent())
+		{
+			dialogString = "szAnswer=$(zenity";
+            if(Zenity3Present() >= 4 && XPropPresent())
+                dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		else if(MateDialogPresent())
+			dialogString = "szAnswer=$(matedialog";
+		else if(ShellementaryPresent())
+			dialogString = "szAnswer=$(shellementary";
+		else
+		{
+			dialogString = "szAnswer=$(qarma";
+            if(XPropPresent())
+                dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+		}
+		dialogString += " --";
+
+		if(buttons == MFD::Buttons::OKCancel)
+            dialogString += "question --ok-label=OK --cancel-label=Cancel";
+        else if(buttons == MFD::Buttons::YesNo)
+            dialogString += "question";
+        else if(style == MFD::Style::Error)
+            dialogString += "error";
+        else if(style == MFD::Style::Warning)
+            dialogString += "warning";
+        else
+            dialogString += "info";
+
+		if(buttons == MFD::Buttons::Quit)
+            dialogString += " --ok-label=Quit";
+
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!message.empty())
+			dialogString += " --text=\"" + message + "\"";
+
+		if (Zenity3Present() >= 3 ||
+			(!ZenityPresent() &&
+			(ShellementaryPresent() || QarmaPresent())))
+        {
+            dialogString += " --icon-name=dialog-";
+            if(style == MFD::Style::Question)
+                dialogString += "question";
+            else if(style == MFD::Style::Error)
+                dialogString += "error";
+            else if(style == MFD::Style::Warning)
+                dialogString += "warning";
+            else
+                dialogString += "information";
+        }
+
+		dialogString += " 2>/dev/null ";
+		dialogString += ");if [ $? = 0 ];then echo 1;else echo 0;fi";
+	}
+	else if(YadPresent())
+	{
+		dialogString += "szAnswer=$(yad --";
+
+        if(buttons == MFD::Buttons::OK)
+            dialogString += "button=OK:1";
+        else if(buttons == MFD::Buttons::OKCancel)
+            dialogString += "button=OK:1 --button=Cancel:0";
+        else if(buttons == MFD::Buttons::YesNo)
+            dialogString += "button=Yes:1 --button=No:0";
+        else if(style == MFD::Style::Error)
+            dialogString += "error";
+        else if(style == MFD::Style::Warning)
+            dialogString += "warning";
+        else if(style == MFD::Style::Question)
+            dialogString += "question";
+        else
+            dialogString += "info";
+
+        if(!title.empty())
+            dialogString += " --title=\"" + title + "\"";
+        if(!message.empty())
+            dialogString += " --text=\"" + message + "\"";
+
+        dialogString += " 2>/dev/null ";
+        dialogString += ");echo $?";
+	}
+	else if(TKinter3Present())
+	{
+		dialogString = Python3Name;
+
+		dialogString += " -S -c \"import tkinter;from tkinter import messagebox;root=tkinter.Tk();root.withdraw();";
+		dialogString += "res=messagebox.";
+
+		if(buttons == MFD::Buttons::OKCancel)
+			dialogString += "askokcancel(";
+		else if(buttons == MFD::Buttons::YesNo)
+			dialogString += "askyesno(";
+		else
+			dialogString += "showinfo(";
+
+		dialogString += "icon='";
+
+		if(style == MFD::Style::Error)
+			dialogString += "error";
+		else if(style == MFD::Style::Question)
+			dialogString += "question";
+		else if(style == MFD::Style::Warning)
+			dialogString += "warning";
+		else
+			dialogString += "info";
+
+		dialogString += "',";
+
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+		if(!message.empty())
+		{
+			std::string msg = message;
+			std::size_t p = std::string::npos;
+			while((p = msg.find('\n')) != std::string::npos)
+				msg.replace(p, 1, "\\n");
+
+			dialogString += "message='" + msg + "'";
+		}
+
+		dialogString += ");\nif res is False :\n\tprint (0)\nelse :\n\tprint (1)\n\"";
+	}
+
+	FILE* in;
+	if(!(in = popen(dialogString.data(), "r")))
+		return {};
+	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+	{}
+	uint32_t off = 0;
+	for(const auto& c : buffer)
+	{
+		if(c == '\0')
+			break;
+		off++;
+	}
+	buffer.resize(off);
+
+	if(buffer[buffer.size() - 1] == '\n')
+		buffer.pop_back();
+
+	if (buffer == "1")
+	{
+		if (buttons == MFD::Buttons::YesNo)
+			selection = MFD::Selection::Yes;
+		else if (buttons == MFD::Buttons::OKCancel)
+			selection = MFD::Selection::OK;
+		else if (buttons == MFD::Buttons::OK)
+			selection = MFD::Selection::OK;
+        else if (buttons == MFD::Buttons::Quit)
+            selection = MFD::Selection::Quit;
+	}
+	else if (buffer == "0")
+	{
+		if (buttons == MFD::Buttons::YesNo)
+			selection = MFD::Selection::No;
+		else if (buttons == MFD::Buttons::OKCancel)
+			selection = MFD::Selection::Cancel;
+		else if (buttons == MFD::Buttons::OK)
+			selection = MFD::Selection::Quit;
+        else if (buttons == MFD::Buttons::Quit)
+            selection = MFD::Selection::Quit;
+	}
+	else
+		selection = MFD::Selection::Quit;
+#endif
+
+	return selection;
+}
+
+MFD::Selection MFD::ShowMsgBox(const std::string& title, const std::string& message, const MFD::Style style)
+{
+	return ShowMsgBox(title, message, style, MFD::Buttons::OK);
+}
+
+MFD::Selection MFD::ShowMsgBox(const std::string& title, const std::string& message, const MFD::Buttons buttons)
+{
+	return ShowMsgBox(title, message, MFD::Style::Info, buttons);
+}
+
+MFD::Selection MFD::ShowMsgBox(const std::string& title, const std::string& message)
+{
+	return ShowMsgBox(title, message, MFD::Style::Info, MFD::Buttons::OK);
 }
