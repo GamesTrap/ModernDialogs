@@ -82,17 +82,7 @@ First clone the repository with `git clone https://github.com/GamesTrap/ModernDi
 
 ModernDialogs uses _Premake 5_ as a build generation tool. Follow [these](https://premake.github.io/download.html) instructions in order to install it.
 
-Then, follow the steps relevant to your operating system.
-
-### Windows
-
-Premake can generate project files for several Visual Studio versions.
-For example, run `premake vs2019` to generate the `.sln` and `.vcxproj` files for Visual Studio 2019.
-
-### Linux
-
-Premake can generate makefile project files.
-For example, run `premake gmake2` to generate the `Makefile` files.
+Then, execute one of the generator scripts in the GeneratorScripts folder.
 
 ## License
 

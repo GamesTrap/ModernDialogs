@@ -174,3 +174,4 @@ docs/_build/
 *.project
 *.workspace
 *.DotSettings
+!/GeneratorScripts/**

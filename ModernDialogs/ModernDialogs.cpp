@@ -63,7 +63,7 @@ std::wstring GetPathWithoutFinalSlashW(const std::wstring& source)
 		std::size_t index = source.find_last_of(L'/');
 		if (index == std::wstring_view::npos)
 			index = source.find_last_of(L'\\');
-		if (index != std::string_view::npos)
+		if (index != std::wstring_view::npos)
 			result = source.substr(0, index);
 		else
 			result = {};
