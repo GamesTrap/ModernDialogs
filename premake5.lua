@@ -1,4 +1,4 @@
-workspace "ModernFileDialogs"
+workspace "ModernDialogs"
 	configurations { "Debug32", "Release32", "Debug64", "Release64" }
 
 	startproject "Example"
@@ -16,8 +16,8 @@ workspace "ModernFileDialogs"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
-project "ModernFileDialogs"
-	location "ModernFileDialogs"
+project "ModernDialogs"
+	location "ModernDialogs"
 	kind "StaticLib"
 	language "C++"
 	staticruntime "on"
@@ -30,8 +30,8 @@ project "ModernFileDialogs"
 	--Add all source and header files
 	files
 	{
-		"ModernFileDialogs/**.h",
-		"ModernFileDialogs/**.cpp"
+		"ModernDialogs/**.h",
+		"ModernDialogs/**.cpp"
 	}
 
 	filter "configurations:Debug*"
@@ -62,12 +62,12 @@ project "Example"
 
 	includedirs
 	{
-		"ModernFileDialogs/"
+		"ModernDialogs/"
 	}
 
 	links
 	{
-		"ModernFileDialogs"
+		"ModernDialogs"
 	}
 
 	filter "configurations:Debug*"

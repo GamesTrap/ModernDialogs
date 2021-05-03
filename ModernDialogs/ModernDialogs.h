@@ -22,13 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef _GAMESTRAP_MODERNFILEDIALOGS_H_
-#define _GAMESTRAP_MODERNFILEDIALOGS_H_
+#ifndef _GAMESTRAP_MODERNDIALOGS_H_
+#define _GAMESTRAP_MODERNDIALOGS_H_
 
 #include <string>
 #include <vector>
 
-namespace MFD
+namespace MD
 {
     /// <summary>
     /// Open a Save File Dialog.
@@ -180,4 +180,4 @@ namespace MFD
     Selection ShowMsgBox(const std::string& title, const std::string& message);
 }
 
-#endif /*_GAMESTRAP_MODERNFILEDIALOGS_H_*/
+#endif /*_GAMESTRAP_MODERNDIALOGS_H_*/

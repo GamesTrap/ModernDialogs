@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "ModernFileDialogs.h"
+#include "ModernDialogs.h"
 
 #include <algorithm>
 
@@ -528,10 +528,10 @@ std::string SelectFolderWinGUI(const std::string& title, const std::string& defa
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-MFD::Selection ShowMsgBoxWinGUI(const std::string& title,
+MD::Selection ShowMsgBoxWinGUI(const std::string& title,
 								const std::string& message,
-								const MFD::Style style,
-								const MFD::Buttons buttons)
+								const MD::Style style,
+								const MD::Buttons buttons)
 {
 	std::wstring wTitle;
 	std::wstring wMessage;
@@ -551,45 +551,45 @@ MFD::Selection ShowMsgBoxWinGUI(const std::string& title,
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-MFD::Selection GetSelection(const int32_t response, const MFD::Buttons buttons)
+MD::Selection GetSelection(const int32_t response, const MD::Buttons buttons)
 {
 	switch(response)
 	{
 	case IDOK:
-		return buttons == MFD::Buttons::Quit ? MFD::Selection::Quit : MFD::Selection::OK;
+		return buttons == MD::Buttons::Quit ? MD::Selection::Quit : MD::Selection::OK;
 
 	case IDCANCEL:
-		return MFD::Selection::Cancel;
+		return MD::Selection::Cancel;
 
 	case IDYES:
-		return MFD::Selection::Yes;
+		return MD::Selection::Yes;
 
 	case IDNO:
-		return MFD::Selection::No;
+		return MD::Selection::No;
 
 	default:
-		return MFD::Selection::None;
+		return MD::Selection::None;
 	}
 
-	return MFD::Selection::None;
+	return MD::Selection::None;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-uint32_t GetIcon(const MFD::Style style)
+uint32_t GetIcon(const MD::Style style)
 {
 	switch(style)
 	{
-	case MFD::Style::Info:
+	case MD::Style::Info:
 		return MB_ICONINFORMATION;
 
-	case MFD::Style::Warning:
+	case MD::Style::Warning:
 		return MB_ICONWARNING;
 
-	case MFD::Style::Error:
+	case MD::Style::Error:
 		return MB_ICONERROR;
 
-	case MFD::Style::Question:
+	case MD::Style::Question:
 		return MB_ICONQUESTION;
 
 	default:
@@ -601,18 +601,18 @@ uint32_t GetIcon(const MFD::Style style)
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-uint32_t GetButtons(const MFD::Buttons buttons)
+uint32_t GetButtons(const MD::Buttons buttons)
 {
 	switch(buttons)
 	{
-	case MFD::Buttons::OK:
-	case MFD::Buttons::Quit: //There's no 'Quit' button on Windows so use OK
+	case MD::Buttons::OK:
+	case MD::Buttons::Quit: //There's no 'Quit' button on Windows so use OK
 		return MB_OK;
 
-	case MFD::Buttons::OKCancel:
+	case MD::Buttons::OKCancel:
 		return MB_OKCANCEL;
 
-	case MFD::Buttons::YesNo:
+	case MD::Buttons::YesNo:
 		return MB_YESNO;
 
 	default:
@@ -1020,7 +1020,7 @@ bool QuoteDetected(const std::string_view str)
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::string MFD::SaveFile(const std::string& title,
+std::string MD::SaveFile(const std::string& title,
                           const std::string& defaultPathAndFile,
                           const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                           const bool allFiles)
@@ -1231,7 +1231,7 @@ std::string MFD::SaveFile(const std::string& title,
 
 //-------------------------------------------------------------------------------------------------------------------//
 #include <iostream>
-std::vector<std::string> MFD::OpenFile(const std::string& title,
+std::vector<std::string> MD::OpenFile(const std::string& title,
                                        const std::string& defaultPathAndFile,
                                        const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                                        const bool allowMultipleSelects,
@@ -1497,36 +1497,36 @@ std::vector<std::string> MFD::OpenFile(const std::string& title,
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::string MFD::OpenSingleFile(const std::string& title,
+std::string MD::OpenSingleFile(const std::string& title,
                            const std::string& defaultPathAndFile,
                            const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                            const bool allFiles)
 {
-	std::vector<std::string> path = MFD::OpenFile(title, defaultPathAndFile, filterPatterns, false, allFiles);
+	std::vector<std::string> path = MD::OpenFile(title, defaultPathAndFile, filterPatterns, false, allFiles);
 	return path.empty() ? std::string() : path[0];
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::vector<std::string> MFD::OpenMultipleFiles(const std::string& title,
+std::vector<std::string> MD::OpenMultipleFiles(const std::string& title,
                               const std::string& defaultPathAndFile,
                               const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                               const bool allFiles)
 {
-	const std::vector<std::string> paths = MFD::OpenFile(title, defaultPathAndFile, filterPatterns, true, allFiles);
+	const std::vector<std::string> paths = MD::OpenFile(title, defaultPathAndFile, filterPatterns, true, allFiles);
 	return paths.empty() ? std::vector<std::string>() : paths;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-std::string MFD::SelectFolder(const std::string& title, const std::string& defaultPath)
+std::string MD::SelectFolder(const std::string& title, const std::string& defaultPath)
 {
 	static std::string buffer;
 
 	if (QuoteDetected(title))
-		return MFD::SelectFolder("INVALID TITLE WITH QUOTES", defaultPath);
+		return MD::SelectFolder("INVALID TITLE WITH QUOTES", defaultPath);
 	if (QuoteDetected(defaultPath))
-		return MFD::SelectFolder(title, "INVALID DEFAULT_PATH WITH QUOTES");
+		return MD::SelectFolder(title, "INVALID DEFAULT_PATH WITH QUOTES");
 
 	std::string path;
 #ifdef _WIN32
@@ -1631,19 +1631,19 @@ std::string MFD::SelectFolder(const std::string& title, const std::string& defau
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-MFD::Selection MFD::ShowMsgBox(const std::string& title,
+MD::Selection MD::ShowMsgBox(const std::string& title,
 							   const std::string& message,
-							   const MFD::Style style,
-							   const MFD::Buttons buttons)
+							   const MD::Style style,
+							   const MD::Buttons buttons)
 {
 	std::string buffer;
 	buffer.resize(1024);
-	MFD::Selection selection = MFD::Selection::Error;
+	MD::Selection selection = MD::Selection::Error;
 
 	if (QuoteDetected(title))
-		return MFD::ShowMsgBox("INVALID TITLE WITH QUOTES", message, style, buttons);
+		return MD::ShowMsgBox("INVALID TITLE WITH QUOTES", message, style, buttons);
 	if (QuoteDetected(message))
-		return MFD::ShowMsgBox(title, "INVALID DEFAULT_PATH WITH QUOTES", style, buttons);
+		return MD::ShowMsgBox(title, "INVALID DEFAULT_PATH WITH QUOTES", style, buttons);
 
 #ifdef _WIN32
 	selection = ShowMsgBoxWinGUI(title, message, style, buttons);
@@ -1656,15 +1656,15 @@ MFD::Selection MFD::ShowMsgBox(const std::string& title,
 			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
 
 		dialogString += " --";
-		if (buttons == MFD::Buttons::OKCancel || buttons == MFD::Buttons::YesNo)
+		if (buttons == MD::Buttons::OKCancel || buttons == MD::Buttons::YesNo)
 		{
-			if (style == MFD::Style::Warning || style == MFD::Style::Error)
+			if (style == MD::Style::Warning || style == MD::Style::Error)
 				dialogString += "warning";
             dialogString += "yesno";
 		}
-		else if (style == MFD::Style::Error)
+		else if (style == MD::Style::Error)
 			dialogString += "error";
-		else if (style == MFD::Style::Warning)
+		else if (style == MD::Style::Warning)
 			dialogString += "sorry";
 		else
 			dialogString += "msgbox";
@@ -1672,9 +1672,9 @@ MFD::Selection MFD::ShowMsgBox(const std::string& title,
 		if (!message.empty())
 			dialogString += message;
 		dialogString += "\"";
-		if (buttons == MFD::Buttons::OKCancel)
+		if (buttons == MD::Buttons::OKCancel)
 			dialogString += " --yes-label OK --no-label Cancel";
-        if (buttons == MFD::Buttons::Quit)
+        if (buttons == MD::Buttons::Quit)
             dialogString += " --ok-label Quit";
 		if (!title.empty())
 			dialogString += " --title \"" + title + "\"";
@@ -1701,18 +1701,18 @@ MFD::Selection MFD::ShowMsgBox(const std::string& title,
 		}
 		dialogString += " --";
 
-		if(buttons == MFD::Buttons::OKCancel)
+		if(buttons == MD::Buttons::OKCancel)
             dialogString += "question --ok-label=OK --cancel-label=Cancel";
-        else if(buttons == MFD::Buttons::YesNo)
+        else if(buttons == MD::Buttons::YesNo)
             dialogString += "question";
-        else if(style == MFD::Style::Error)
+        else if(style == MD::Style::Error)
             dialogString += "error";
-        else if(style == MFD::Style::Warning)
+        else if(style == MD::Style::Warning)
             dialogString += "warning";
         else
             dialogString += "info";
 
-		if(buttons == MFD::Buttons::Quit)
+		if(buttons == MD::Buttons::Quit)
             dialogString += " --ok-label=Quit";
 
 		if(!title.empty())
@@ -1725,11 +1725,11 @@ MFD::Selection MFD::ShowMsgBox(const std::string& title,
 			(ShellementaryPresent() || QarmaPresent())))
         {
             dialogString += " --icon-name=dialog-";
-            if(style == MFD::Style::Question)
+            if(style == MD::Style::Question)
                 dialogString += "question";
-            else if(style == MFD::Style::Error)
+            else if(style == MD::Style::Error)
                 dialogString += "error";
-            else if(style == MFD::Style::Warning)
+            else if(style == MD::Style::Warning)
                 dialogString += "warning";
             else
                 dialogString += "information";
@@ -1742,17 +1742,17 @@ MFD::Selection MFD::ShowMsgBox(const std::string& title,
 	{
 		dialogString += "szAnswer=$(yad --";
 
-        if(buttons == MFD::Buttons::OK)
+        if(buttons == MD::Buttons::OK)
             dialogString += "button=OK:1";
-        else if(buttons == MFD::Buttons::OKCancel)
+        else if(buttons == MD::Buttons::OKCancel)
             dialogString += "button=OK:1 --button=Cancel:0";
-        else if(buttons == MFD::Buttons::YesNo)
+        else if(buttons == MD::Buttons::YesNo)
             dialogString += "button=Yes:1 --button=No:0";
-        else if(style == MFD::Style::Error)
+        else if(style == MD::Style::Error)
             dialogString += "error";
-        else if(style == MFD::Style::Warning)
+        else if(style == MD::Style::Warning)
             dialogString += "warning";
-        else if(style == MFD::Style::Question)
+        else if(style == MD::Style::Question)
             dialogString += "question";
         else
             dialogString += "info";
@@ -1772,20 +1772,20 @@ MFD::Selection MFD::ShowMsgBox(const std::string& title,
 		dialogString += " -S -c \"import tkinter;from tkinter import messagebox;root=tkinter.Tk();root.withdraw();";
 		dialogString += "res=messagebox.";
 
-		if(buttons == MFD::Buttons::OKCancel)
+		if(buttons == MD::Buttons::OKCancel)
 			dialogString += "askokcancel(";
-		else if(buttons == MFD::Buttons::YesNo)
+		else if(buttons == MD::Buttons::YesNo)
 			dialogString += "askyesno(";
 		else
 			dialogString += "showinfo(";
 
 		dialogString += "icon='";
 
-		if(style == MFD::Style::Error)
+		if(style == MD::Style::Error)
 			dialogString += "error";
-		else if(style == MFD::Style::Question)
+		else if(style == MD::Style::Question)
 			dialogString += "question";
-		else if(style == MFD::Style::Warning)
+		else if(style == MD::Style::Warning)
 			dialogString += "warning";
 		else
 			dialogString += "info";
@@ -1826,44 +1826,44 @@ MFD::Selection MFD::ShowMsgBox(const std::string& title,
 
 	if (buffer == "1")
 	{
-		if (buttons == MFD::Buttons::YesNo)
-			selection = MFD::Selection::Yes;
-		else if (buttons == MFD::Buttons::OKCancel)
-			selection = MFD::Selection::OK;
-		else if (buttons == MFD::Buttons::OK)
-			selection = MFD::Selection::OK;
-        else if (buttons == MFD::Buttons::Quit)
-            selection = MFD::Selection::Quit;
+		if (buttons == MD::Buttons::YesNo)
+			selection = MD::Selection::Yes;
+		else if (buttons == MD::Buttons::OKCancel)
+			selection = MD::Selection::OK;
+		else if (buttons == MD::Buttons::OK)
+			selection = MD::Selection::OK;
+        else if (buttons == MD::Buttons::Quit)
+            selection = MD::Selection::Quit;
 	}
 	else if (buffer == "0")
 	{
-		if (buttons == MFD::Buttons::YesNo)
-			selection = MFD::Selection::No;
-		else if (buttons == MFD::Buttons::OKCancel)
-			selection = MFD::Selection::Cancel;
-		else if (buttons == MFD::Buttons::OK)
-			selection = MFD::Selection::Quit;
-        else if (buttons == MFD::Buttons::Quit)
-            selection = MFD::Selection::Quit;
+		if (buttons == MD::Buttons::YesNo)
+			selection = MD::Selection::No;
+		else if (buttons == MD::Buttons::OKCancel)
+			selection = MD::Selection::Cancel;
+		else if (buttons == MD::Buttons::OK)
+			selection = MD::Selection::Quit;
+        else if (buttons == MD::Buttons::Quit)
+            selection = MD::Selection::Quit;
 	}
 	else
-		selection = MFD::Selection::Quit;
+		selection = MD::Selection::Quit;
 #endif
 
 	return selection;
 }
 
-MFD::Selection MFD::ShowMsgBox(const std::string& title, const std::string& message, const MFD::Style style)
+MD::Selection MD::ShowMsgBox(const std::string& title, const std::string& message, const MD::Style style)
 {
-	return ShowMsgBox(title, message, style, MFD::Buttons::OK);
+	return ShowMsgBox(title, message, style, MD::Buttons::OK);
 }
 
-MFD::Selection MFD::ShowMsgBox(const std::string& title, const std::string& message, const MFD::Buttons buttons)
+MD::Selection MD::ShowMsgBox(const std::string& title, const std::string& message, const MD::Buttons buttons)
 {
-	return ShowMsgBox(title, message, MFD::Style::Info, buttons);
+	return ShowMsgBox(title, message, MD::Style::Info, buttons);
 }
 
-MFD::Selection MFD::ShowMsgBox(const std::string& title, const std::string& message)
+MD::Selection MD::ShowMsgBox(const std::string& title, const std::string& message)
 {
-	return ShowMsgBox(title, message, MFD::Style::Info, MFD::Buttons::OK);
+	return ShowMsgBox(title, message, MD::Style::Info, MD::Buttons::OK);
 }
