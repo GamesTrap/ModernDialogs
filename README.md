@@ -13,7 +13,25 @@ ModernDialogs (Cross-platform Linux, Windows C++17)
 OpenFileDialog, SaveFileDialog, SelectFolderDialog & MessageBox  
 Supports ASCII & UTF-8
 
-This README will be updated with more info eventually.
+## Information
+
+### Windows
+
+On Windows ModernDialogs uses the WinAPI for every dialog.
+
+### Linux
+
+On Linux the dialogs are created by using one of the following packages if installed:
+
+- KDialog
+- Zenity
+- MateDialog
+- Shellementary
+- Qarma
+- Yad
+- TKinter3
+
+If none of these packages is installed the functions will return a `MD::Selection::Error`.
 
 ## Screenshots
 
@@ -39,19 +57,22 @@ Ubuntu 20.10 X11 Gnome 3:
 
 OpenFile:
 <br>
-<img alt="OpenFileLinux" src="Images/OpenFileLinux.PNG" width="508px" height="328px">
+<img alt="OpenFileLinux" src="Images/OpenFileLinux.PNG" width="508px" height="352px">
 <br>
 SaveFile:
 <br>
-<img alt="SaveFileLinux" src="Images/SaveFileLinux.PNG" width="508px" height="328px">
+<img alt="SaveFileLinux" src="Images/SaveFileLinux.PNG" width="508px" height="352px">
 <br>
 SelectFolder:
 <br>
-<img alt="SelectFolderLinux" src="Images/SelectFolderLinux.PNG" width="508px" height="328px">
+<img alt="SelectFolderLinux" src="Images/SelectFolderLinux.PNG" width="508px" height="352px">
 <br>
 MessageBox:
 <br>
-TBD
+<img alt="MsgBoxInfoLinux" src="Images/MsgBoxInfoLinux.PNG" width="142px" height="137px">
+<img alt="MsgBoxQuestionLinux" src="Images/MsgBoxQuestionLinux.PNG" width="130px" height="137px">
+<img alt="MsgBoxWarningLinux" src="Images/MsgBoxWarningLinux.PNG" width="160px" height="137px">
+<img alt="MsgBoxErrorLinux" src="Images/MsgBoxErrorLinux.PNG" width="160px" height="137px">
 ## Setup
 
 First clone the repository with `git clone https://github.com/GamesTrap/ModernDialogs`.

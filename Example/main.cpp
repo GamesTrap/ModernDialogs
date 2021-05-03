@@ -66,6 +66,9 @@ std::string PrintSelection(const MD::Selection selection)
 
 int main()
 {
+	//TODO What happens when no usable package was found on linux?!
+	//TODO What happens when empty strings are provided?!
+
 #ifdef SaveFileExamples
 	std::cout << MD::SaveFile("TestTitle") << std::endl;
 	std::cout << MD::SaveFile("TestTitle", "TestFile.Test") << std::endl;
