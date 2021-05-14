@@ -1,13 +1,13 @@
 # ModernDialogs
 
-[![Build Status](https://travis-ci.com/GamesTrap/ModernFileDialogs.svg?branch=main)](https://travis-ci.com/GamesTrap/ModernFileDialogs)
-[![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernFileDialogs)
-[![GitHub repo size](https://img.shields.io/github/repo-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernFileDialogs)
-[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/GamesTrap/ModernDialogs?include_prereleases)](https://github.com/GamesTrap/ModernFileDialogs/releases)
-[![GitHub All Releases](https://img.shields.io/github/downloads/GamesTrap/ModernDialogs/total)](https://github.com/GamesTrap/ModernFileDialogs/releases)
-[![GitHub issues](https://img.shields.io/github/issues/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernFileDialogs/issues?q=is%3Aopen+is%3Aissue)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernFileDialogs/pulls?q=is%3Aopen+is%3Apr)
-[![GitHub](https://img.shields.io/github/license/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernFileDialogs/blob/master/LICENSE)
+[![Build Status](https://travis-ci.com/GamesTrap/ModernDialogs.svg?branch=main)](https://travis-ci.com/GamesTrap/ModernDialogs)
+[![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernDialogs)
+[![GitHub repo size](https://img.shields.io/github/repo-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernDialogs)
+[![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/GamesTrap/ModernDialogs?include_prereleases)](https://github.com/GamesTrap/ModernDialogs/releases)
+[![GitHub All Releases](https://img.shields.io/github/downloads/GamesTrap/ModernDialogs/total)](https://github.com/GamesTrap/ModernDialogs/releases)
+[![GitHub issues](https://img.shields.io/github/issues/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernDialogs/issues?q=is%3Aopen+is%3Aissue)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernDialogs/pulls?q=is%3Aopen+is%3Apr)
+[![GitHub](https://img.shields.io/github/license/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernDialogs/blob/master/LICENSE)
 
 ModernDialogs (Cross-platform Linux, Windows C++17)  
 OpenFileDialog, SaveFileDialog, SelectFolderDialog & MessageBox  
@@ -79,8 +79,6 @@ MessageBox:
 ## Setup
 
 First clone the repository with `git clone https://github.com/GamesTrap/ModernDialogs`.
-
-ModernDialogs uses _Premake 5_ as a build generation tool. Follow [these](https://premake.github.io/download.html) instructions in order to install it.
 
 Then, execute one of the generator scripts in the GeneratorScripts folder.
 
