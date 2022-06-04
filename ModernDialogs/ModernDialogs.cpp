@@ -181,11 +181,11 @@ bool FileExists(const std::string& filePathAndName)
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM lParam)
+BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM /*lParam*/)
 {
 	std::wstring buffer;
 	buffer.resize(255);
-	GetClassNameW(hwndChild, buffer.data(), buffer.size());
+	GetClassNameW(hwndChild, buffer.data(), static_cast<int>(buffer.size()));
 	if(buffer == L"SysTreeView32")
 	{
 		HTREEITEM hNode = TreeView_GetSelection(hwndChild);
@@ -198,7 +198,7 @@ BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM lParam)
 
 //-------------------------------------------------------------------------------------------------------------------//
 
-int32_t CALLBACK BrowseCallbackProcW(HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
+int32_t CALLBACK BrowseCallbackProcW(HWND hwnd, UINT uMsg, LPARAM /*lp*/, LPARAM pData)
 {
 	switch(uMsg)
 	{
@@ -547,8 +547,6 @@ MD::Selection GetSelection(const int32_t response, const MD::Buttons buttons)
 	default:
 		return MD::Selection::None;
 	}
-
-	return MD::Selection::None;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -572,8 +570,6 @@ uint32_t GetIcon(const MD::Style style)
 	default:
 		return MB_ICONINFORMATION;
 	}
-
-	return MB_ICONINFORMATION;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -595,8 +591,6 @@ uint32_t GetButtons(const MD::Buttons buttons)
 	default:
 		return MB_OK;
 	}
-
-	return MB_OK;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
