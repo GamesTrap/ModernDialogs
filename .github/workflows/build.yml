@@ -10,12 +10,11 @@ jobs:
   build-linux:
     name: Build Linux Source
     runs-on: ubuntu-latest
+    env:
+      CC: gcc-10
+      CXX: g++-10
     steps:
     - uses: actions/checkout@v3
-    - name: Make gcc-10 and g++-10 default
-      env:
-        CC: gcc-10
-        CXX: g++-10
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
