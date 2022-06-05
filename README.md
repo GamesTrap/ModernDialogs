@@ -1,6 +1,6 @@
 # ModernDialogs
 
-[![Build Status](https://travis-ci.com/GamesTrap/ModernDialogs.svg?branch=main)](https://travis-ci.com/GamesTrap/ModernDialogs)
+[![Build CI](https://github.com/GamesTrap/ModernDialogs/actions/workflows/build.yml/badge.svg)](https://github.com/GamesTrap/ModernDialogs/actions/workflows/build.yml)
 [![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernDialogs)
 [![GitHub repo size](https://img.shields.io/github/repo-size/GamesTrap/ModernDialogs)](https://github.com/GamesTrap/ModernDialogs)
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/GamesTrap/ModernDialogs?include_prereleases)](https://github.com/GamesTrap/ModernDialogs/releases)
