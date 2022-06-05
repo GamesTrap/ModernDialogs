@@ -20,9 +20,10 @@ project "ModernDialogs"
 	location "ModernDialogs"
 	kind "StaticLib"
 	language "C++"
-	staticruntime "on"
+	staticruntime "off"
 	cppdialect "C++17"
 	systemversion "latest"
+	warnings "Extra"
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.group}/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.group}/%{prj.name}")
@@ -46,9 +47,10 @@ project "Example"
 	location "Example"
 	kind "ConsoleApp"
 	language "C++"
-	staticruntime "on"
+	staticruntime "off"
 	cppdialect "C++17"
 	systemversion "latest"
+	warnings "Extra"
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.group}/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.group}/%{prj.name}")

@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Jan "GamesTrap" Sch�rkamp
+Copyright (c) 2020 - 2022 Jan "GamesTrap" Sch�rkamp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -60,8 +60,6 @@ std::string PrintSelection(const MD::Selection selection)
 	default:
 		return "Error";
 	}
-
-	return "Error";
 }
 
 int main()

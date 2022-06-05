@@ -175,3 +175,4 @@ docs/_build/
 *.workspace
 *.DotSettings
 !/GeneratorScripts/**
+ModernDialogs.code-workspace

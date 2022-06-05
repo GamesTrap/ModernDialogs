@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Jan "GamesTrap" Schürkamp
+Copyright (c) 2020 - 2022 Jan "GamesTrap" Schürkamp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -142,7 +142,7 @@ namespace MD
     /// <summary>
     /// Blocking call to create a modal message box with the given title, message, style and buttons.
     /// </summary>
-    /// 
+    ///
     /// <param name="title">Title for the message box.</param>
     /// <param name="message">Message for the message box.</param>
     /// <param name="style">Style for the message box.</param>
@@ -153,7 +153,7 @@ namespace MD
     /// <summary>
     /// Convenience function to call ShowMsgBox() with default button.
     /// </summary>
-    /// 
+    ///
     /// <param name="title">Title for the message box.</param>
     /// <param name="message">Message for the message box.</param>
     /// <param name="style">Style for the message box.</param>
@@ -163,7 +163,7 @@ namespace MD
     /// <summary>
     /// Convenience function to call ShowMsgBox() with default style.
     /// </summary>
-    /// 
+    ///
     /// <param name="title">Title for the message box.</param>
     /// <param name="message">Message for the message box.</param>
     /// <param name="buttons">Button(s) for the message box.</param>
@@ -173,7 +173,7 @@ namespace MD
     /// <summary>
     /// Convenience function to call ShowMsgBox() with default style and button.
     /// </summary>
-    /// 
+    ///
     /// <param name="title">Title for the message box.</param>
     /// <param name="message">Message for the message box.</param>
     /// <returns>Selection made by the user.</returns>
