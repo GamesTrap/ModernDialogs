@@ -15,6 +15,8 @@ jobs:
       CXX: g++-10
     steps:
     - uses: actions/checkout@v3
+    - name: Install g++-multilib
+      run: sudo apt-get install -y g++-10-multilib
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
@@ -29,4 +31,4 @@ jobs:
     - name: Generate Project files
       run: cd GeneratorScripts && .\GenerateProjectVS2022.bat && cd ..
     - name: Compile code
-      run: '\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat\" && msbuild /m ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m ModernDialogs.sln'
