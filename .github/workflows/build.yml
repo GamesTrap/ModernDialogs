@@ -28,6 +28,8 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
     - name: Generate Project files
       run: cd GeneratorScripts && .\GenerateProjectVS2022.bat && cd ..
     - name: Compile code
