@@ -1,0 +1,29 @@
+name: Build CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-linux:
+    name: Build Linux Source
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set Execute flags
+      run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
+    - name: Generate Make files
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh && cd ..
+    - name: Compile code
+      run: make all
+  build-windows:
+    name: Build Windows Source
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Generate Project files
+      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat && cd ..
+    - name: Compile code
+      run: C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat && msbuild /m ModernDialogs.sln
