@@ -991,7 +991,7 @@ bool FilenameValid(const std::string_view filenameWithoutPath)
 
 	return std::all_of(filenameWithoutPath.cbegin(), filenameWithoutPath.cend(), [](const char c)
 	{
-		return c != '\\' && c != '/' && c == ':' && c == '*' && c == '?' &&
+		return c != '\\' && c != '/' && c != ':' && c != '*' && c != '?' &&
 		       c != '\"' && c != '<' && c != '>' && c != '|';
 	});
 }
