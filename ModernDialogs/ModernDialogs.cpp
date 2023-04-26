@@ -25,6 +25,7 @@ SOFTWARE.
 #include "ModernDialogs.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #ifdef _WIN32
 #ifndef _WIN32_WINNT
