@@ -26,6 +26,7 @@ SOFTWARE.
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
 
 #ifdef _WIN32
 #ifndef _WIN32_WINNT
@@ -36,7 +37,7 @@ SOFTWARE.
 #include <shlobj.h>
 #include <conio.h>
 #include <direct.h>
-#else
+#elif defined(__linux__)
 #include <limits.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -45,969 +46,897 @@ SOFTWARE.
 #include <signal.h>
 #endif
 
-//-------------------------------------------------------------------------------------------------------------------//
+#if _MSVC_LANG >= 202002L || __cplusplus >= 202002L
+#define CPP20Constexpr constexpr
+#else
+#define CPP20Constexpr
+#endif
 
-constexpr static int32_t MaxPathOrCMD = 1024;
-constexpr static int32_t MaxMultipleFiles = 1024;
+namespace
+{
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
+	constexpr static int32_t MaxPathOrCMD = 1024;
+	constexpr static int32_t MaxMultipleFiles = 1024;
+
+	//-------------------------------------------------------------------------------------------------------------------//
 
 //Windows land
 #ifdef _WIN32
 
-std::wstring GetPathWithoutFinalSlashW(const std::wstring& source)
-{
-	std::wstring result;
-
-	if (!source.empty())
+	[[nodiscard]] CPP20Constexpr std::wstring GetPathWithoutFinalSlashW(const std::wstring& source)
 	{
+		if(source.empty())
+			return L"";
+
 		std::size_t index = source.find_last_of(L'/');
 		if (index == std::wstring_view::npos)
 			index = source.find_last_of(L'\\');
-		if (index != std::wstring_view::npos)
-			result = source.substr(0, index);
-		else
-			result = {};
+
+		if (index == std::wstring_view::npos)
+			return L"";
+
+		return source.substr(0, index);
 	}
-	else
-		result = {};
 
-	return result;
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::wstring GetLastNameW(const std::wstring& source)
-{
-	std::wstring result;
-
-	if (!source.empty())
+	[[nodiscard]] CPP20Constexpr std::wstring GetLastNameW(const std::wstring& source)
 	{
+		if (source.empty())
+			return L"";
+
 		std::size_t index = source.find_last_of(L'/');
 		if (index == std::wstring_view::npos)
 			index = source.find_last_of(L'\\');
-		if (index != std::wstring_view::npos)
-			result = source.substr(index + 1);
-		else
-			result = source;
-	}
-	else
-		result = {};
 
-	return result;
-}
+		if (index == std::wstring_view::npos)
+			return source;
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::wstring UTF8To16(const std::string& UTF8String)
-{
-	std::wstring result;
-
-	const int32_t count = MultiByteToWideChar(CP_UTF8, 0, UTF8String.data(), -1, nullptr, 0);
-	if (!count)
-		return {};
-
-	result.resize(count);
-
-	if (!MultiByteToWideChar(CP_UTF8, 0, UTF8String.data(), -1, result.data(), static_cast<int32_t>(result.size())))
-		return {};
-
-	result.pop_back();
-
-	return result;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::string UTF16To8(const std::wstring& UTF16String)
-{
-	std::string result;
-
-	const int32_t count = WideCharToMultiByte(CP_UTF8, 0, UTF16String.data(), -1, nullptr, 0, nullptr, nullptr);
-	if (!count)
-		return {};
-
-	result.resize(count);
-
-	if (!WideCharToMultiByte(CP_UTF8, 0, UTF16String.data(), -1, result.data(), static_cast<int32_t>(result.size()), nullptr, nullptr))
-		return {};
-
-	return result;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool DirExists(const std::string& dirPath)
-{
-	struct _stat info {};
-
-	if (dirPath.empty())
-		return false;
-	const std::size_t dirLen = dirPath.length();
-	if (!dirLen)
-		return true;
-	if ((dirLen == 2) && (dirPath[1] == ':'))
-		return true;
-
-	const std::wstring wStr = UTF8To16(dirPath);
-	const int32_t statRet = _wstat(wStr.data(), &info);
-	if (statRet != 0)
-		return false;
-	if (info.st_mode & S_IFDIR)
-		return true;
-
-	return false;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool FileExists(const std::string& filePathAndName)
-{
-	struct _stat info{};
-
-	if (filePathAndName.empty())
-		return false;
-
-	std::wstring temp = UTF8To16(filePathAndName);
-	const int32_t statRet = _wstat(temp.data(), &info);
-
-	if (statRet != 0)
-		return false;
-
-	if (info.st_mode & _S_IFREG)
-		return true;
-
-	return false;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM)
-{
-	std::wstring buffer;
-	buffer.resize(255);
-	GetClassNameW(hwndChild, buffer.data(), static_cast<int32_t>(buffer.size()));
-	if(buffer == L"SysTreeView32")
-	{
-		HTREEITEM const hNode = TreeView_GetSelection(hwndChild);
-		TreeView_EnsureVisible(hwndChild, hNode);
-		return FALSE;
+		return source.substr(index + 1);
 	}
 
-	return TRUE;
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-int32_t CALLBACK BrowseCallbackProcW(HWND hwnd, UINT uMsg, LPARAM /*lp*/, LPARAM pData)
-{
-	switch(uMsg)
+	[[nodiscard]] std::wstring UTF8To16(const std::string& UTF8String)
 	{
-	case BFFM_INITIALIZED:
-		SendMessage(hwnd, BFFM_SETSELECTIONW, TRUE, pData);
-		break;
+		const int32_t count = MultiByteToWideChar(CP_UTF8, 0, UTF8String.data(), -1, nullptr, 0);
+		if (!count)
+			return L"";
 
-	case BFFM_SELCHANGED:
-		EnumChildWindows(hwnd, BrowseCallbackProcWEnum, 0);
-		break;
+		std::wstring result(count, L'\0');
 
-	default:
-		break;
+		if (!MultiByteToWideChar(CP_UTF8, 0, UTF8String.data(), -1, result.data(), static_cast<int32_t>(result.size())))
+			return L"";
+
+		result.pop_back(); //Remove the extra null terminator
+
+		return result;
 	}
 
-	return 0;
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::wstring SaveFileW(const std::wstring& title,
-                       const std::wstring& defaultPathAndFile,
-                       const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
-                       const bool allFiles)
-{
-	static std::wstring buffer{};
-	std::wstring defaultExtension{};
-	std::wstring filterPatternsStr;
-	std::wstring dirName;
-	HRESULT hResult = CoInitializeEx(nullptr, 0);
-
-	dirName = GetPathWithoutFinalSlashW(defaultPathAndFile);
-	buffer = GetLastNameW(defaultPathAndFile);
-
-	if (!filterPatterns.empty())
+	[[nodiscard]] std::string UTF16To8(const std::wstring& UTF16String)
 	{
-		defaultExtension = filterPatterns[0].second;
-		if (filterPatterns[0].first.empty())
+		const int32_t count = WideCharToMultiByte(CP_UTF8, 0, UTF16String.data(), -1, nullptr, 0, nullptr, nullptr);
+		if (!count)
+			return "";
+
+		std::string result(count, '\0');
+
+		if (!WideCharToMultiByte(CP_UTF8, 0, UTF16String.data(), -1, result.data(), static_cast<int32_t>(result.size()), nullptr, nullptr))
+			return "";
+
+		result.pop_back(); //Remove the extra null terminator
+
+		return result;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM)
+	{
+		std::wstring buffer(255, L'\0');
+		GetClassNameW(hwndChild, buffer.data(), static_cast<int32_t>(buffer.size()));
+		if(buffer == L"SysTreeView32")
 		{
-			filterPatternsStr += filterPatterns[0].second + L'\n';
-			filterPatternsStr += filterPatterns[0].second;
+			HTREEITEM const hNode = TreeView_GetSelection(hwndChild);
+			TreeView_EnsureVisible(hwndChild, hNode);
+			return FALSE;
 		}
-		else
-			filterPatternsStr += filterPatterns[0].first + L"(" + filterPatterns[0].second + L")\n" + filterPatterns[0].second;
-		for (uint32_t i = 1; i < filterPatterns.size(); i++)
+
+		return TRUE;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	int32_t CALLBACK BrowseCallbackProcW(HWND hwnd, UINT uMsg, LPARAM /*lp*/, LPARAM pData)
+	{
+		switch(uMsg)
 		{
-			if (filterPatterns[i].first.empty())
+		case BFFM_INITIALIZED:
+			SendMessage(hwnd, BFFM_SETSELECTIONW, TRUE, pData);
+			break;
+
+		case BFFM_SELCHANGED:
+			EnumChildWindows(hwnd, BrowseCallbackProcWEnum, 0);
+			break;
+
+		default:
+			break;
+		}
+
+		return 0;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::wstring SaveFileW(const std::wstring& title,
+										const std::wstring& defaultPathAndFile,
+										const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
+										const bool allFiles)
+	{
+		std::wstring defaultExtension = L"*.*";
+		std::wstring filterPatternsStr = L"All Files\n*.*\n";
+		HRESULT hResult = CoInitializeEx(nullptr, 0);
+
+		const std::wstring dirName = GetPathWithoutFinalSlashW(defaultPathAndFile);
+		std::wstring buffer = GetLastNameW(defaultPathAndFile);
+
+		if (!filterPatterns.empty())
+		{
+			const auto& [frontName, frontExtensions] = filterPattens.front();
+
+			defaultExtension = frontExtensions;
+			filterPatternsStr.clear();
+
+			if (frontName.empty())
 			{
-				filterPatternsStr += L'\n' + filterPatterns[i].second;
-				filterPatternsStr += L'\n' + filterPatterns[i].second;
+				filterPatternsStr += frontExtensions + L'\n';
+				filterPatternsStr += frontExtensions;
 			}
 			else
-				filterPatternsStr += L'\n' + filterPatterns[i].first + L"(" + filterPatterns[i].second + L")\n" + filterPatterns[i].second;
-		}
-		filterPatternsStr += L'\n';
-		if (allFiles)
-			filterPatternsStr += L"All Files\n*.*\n";
-		else
-			filterPatternsStr += L'\n';
-	}
-	else
-	{
-		defaultExtension = L"*.*";
+				filterPatternsStr += frontName + L"(" + frontExtensions + L")\n" + frontExtensions;
 
-		filterPatternsStr = L"All Files\n*.*\n";
-	}
-
-	std::replace(filterPatternsStr.begin(), filterPatternsStr.end(), L'\n', L'\0');
-
-	OPENFILENAMEW ofn;
-	std::memset(&ofn, 0, sizeof(OPENFILENAMEW));
-
-	buffer.resize(MaxPathOrCMD);
-	ofn.lStructSize = sizeof(OPENFILENAMEW);
-	ofn.hwndOwner = GetForegroundWindow();
-	ofn.hInstance = nullptr;
-	ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.data();
-	ofn.lpstrCustomFilter = nullptr;
-	ofn.nMaxCustFilter = 0;
-	ofn.nFilterIndex = 1;
-	ofn.lpstrFile = buffer.data();
-
-	ofn.nMaxFile = MaxPathOrCMD;
-	ofn.lpstrFileTitle = nullptr;
-	ofn.nMaxFileTitle = MaxPathOrCMD / 2;
-	ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.data();
-	ofn.lpstrTitle = title.empty() ? nullptr : title.data();
-	ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST;
-	ofn.nFileOffset = 0;
-	ofn.nFileExtension = 0;
-	ofn.lpstrDefExt = defaultExtension.data();
-	ofn.lCustData = 0L;
-	ofn.lpfnHook = nullptr;
-	ofn.lpTemplateName = nullptr;
-
-	std::wstring retVal;
-	if (GetSaveFileNameW(&ofn) == 0)
-		retVal = {};
-	else
-		retVal = buffer;
-
-	if (hResult == S_OK || hResult == S_FALSE)
-		CoUninitialize();
-
-	return retVal;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::string SaveFileWinGUI(const std::string& title,
-                           const std::string& defaultPathAndFile,
-                           const std::vector<std::pair<std::string, std::string>>& filterPatterns,
-                           const bool allFiles)
-{
-	std::vector<std::pair<std::wstring, std::wstring>> wFilterPatterns(filterPatterns.size());
-	for (uint32_t i = 0; i < wFilterPatterns.size(); i++)
-		wFilterPatterns[i] = { UTF8To16(filterPatterns[i].first), UTF8To16(filterPatterns[i].second) };
-	const std::wstring wTitle = UTF8To16(title);
-	const std::wstring wDefaultPathAndFile = UTF8To16(defaultPathAndFile);
-
-	const std::wstring wPath = SaveFileW(wTitle, wDefaultPathAndFile, wFilterPatterns, allFiles);
-
-	if (wPath.empty())
-		return {};
-
-	std::string path = UTF16To8(wPath);
-	UTF16To8({});
-
-	return path;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::vector<std::wstring> OpenFileW(const std::wstring& title,
-                                    const std::wstring& defaultPathAndFile,
-                                    const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
-                                    const bool allowMultipleSelects,
-                                    const bool allFiles)
-{
-	HRESULT hResult = CoInitializeEx(nullptr, 0);
-
-	static std::wstring buffer;
-
-	std::wstring dirName = GetPathWithoutFinalSlashW(defaultPathAndFile);
-	buffer = GetLastNameW(defaultPathAndFile);
-
-	if (allowMultipleSelects)
-		buffer.resize(MaxMultipleFiles * MaxPathOrCMD + 1);
-	else
-		buffer.resize(MaxPathOrCMD + 1);
-
-	std::wstring filterPatternsStr;
-	if (!filterPatterns.empty())
-	{
-		if (filterPatterns[0].first.empty())
-		{
-			filterPatternsStr += filterPatterns[0].second + L'\n';
-			filterPatternsStr += filterPatterns[0].second;
-		}
-		else
-			filterPatternsStr += filterPatterns[0].first + L"(" + filterPatterns[0].second + L")\n" + filterPatterns[0].second;
-		for (uint32_t i = 1; i < filterPatterns.size(); i++)
-		{
-			if (filterPatterns[i].first.empty())
+			for (uint32_t i = 1u; i < filterPatterns.size(); ++i)
 			{
-				filterPatternsStr += L'\n' + filterPatterns[i].second;
-				filterPatternsStr += L'\n' + filterPatterns[i].second;
-			}
-			else
-				filterPatternsStr += L'\n' + filterPatterns[i].first + L"(" + filterPatterns[i].second + L")\n" + filterPatterns[i].second;
-		}
-		filterPatternsStr += L'\n';
-		if (allFiles)
-			filterPatternsStr += L"All Files\n*.*\n";
-		else
-			filterPatternsStr += L'\n';
-	}
-	else
-		filterPatternsStr = L"All Files\n*.*\n";
+				const auto& [name, extensions] = filterPatterns[i];
 
-	std::replace(filterPatternsStr.begin(), filterPatternsStr.end(), L'\n', L'\0');
-
-	OPENFILENAMEW ofn;
-	std::memset(&ofn, 0, sizeof(OPENFILENAMEW));
-	ofn.lStructSize = sizeof(OPENFILENAMEW);
-	ofn.hwndOwner = GetForegroundWindow();
-	ofn.hInstance = nullptr;
-	ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.data();
-	ofn.lpstrCustomFilter = nullptr;
-	ofn.nMaxCustFilter = 0;
-	ofn.nFilterIndex = 1;
-	ofn.lpstrFile = buffer.data();
-
-	ofn.nMaxFile = static_cast<uint32_t>(buffer.size());
-	ofn.lpstrFileTitle = nullptr;
-	ofn.nMaxFileTitle = MaxPathOrCMD / 2;
-	ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.data();
-	ofn.lpstrTitle = title.empty() ? nullptr : title.data();
-	ofn.Flags = OFN_EXPLORER | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-	ofn.nFileOffset = 0;
-	ofn.nFileExtension = 0;
-	ofn.lpstrDefExt = nullptr;
-	ofn.lCustData = 0L;
-	ofn.lpfnHook = nullptr;
-	ofn.lpTemplateName = nullptr;
-	if (allowMultipleSelects)
-		ofn.Flags |= OFN_ALLOWMULTISELECT;
-
-	std::vector<std::wstring> paths{};
-	if (!GetOpenFileNameW(&ofn))
-		buffer = {};
-	else
-	{
-		if (allowMultipleSelects)
-		{
-			std::wstring folder;
-			do
-			{
-				auto x = buffer.find_first_of(L'\0');
-				std::wstring s = buffer.substr(0, x);
-
-				if (folder.empty())
-					folder = s + L"\\";
+				if (name.empty())
+				{
+					filterPatternsStr += L'\n' + extensions;
+					filterPatternsStr += L'\n' + extensions;
+				}
 				else
-					paths.push_back(folder + s);
+					filterPatternsStr += L'\n' + name + L"(" + extensions + L")\n" + extensions;
+			}
+			filterPatternsStr += L'\n';
 
-				buffer = buffer.substr(x + 1, buffer.size() - (x + 1));
-			} while (buffer[0] != L'\0');
+			if (allFiles)
+				filterPatternsStr += L"All Files\n*.*\n";
+			else
+				filterPatternsStr += L'\n';
 		}
+
+		std::replace(filterPatternsStr.begin(), filterPatternsStr.end(), L'\n', L'\0');
+
+		OPENFILENAMEW ofn{};
+
+		buffer.resize(MaxPathOrCMD);
+		ofn.lStructSize = sizeof(OPENFILENAMEW);
+		ofn.hwndOwner = GetForegroundWindow();
+		ofn.hInstance = nullptr;
+		ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.data();
+		ofn.lpstrCustomFilter = nullptr;
+		ofn.nMaxCustFilter = 0;
+		ofn.nFilterIndex = 1;
+		ofn.lpstrFile = buffer.data();
+
+		ofn.nMaxFile = MaxPathOrCMD;
+		ofn.lpstrFileTitle = nullptr;
+		ofn.nMaxFileTitle = MaxPathOrCMD / 2;
+		ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.data();
+		ofn.lpstrTitle = title.empty() ? nullptr : title.data();
+		ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST;
+		ofn.nFileOffset = 0;
+		ofn.nFileExtension = 0;
+		ofn.lpstrDefExt = defaultExtension.data();
+		ofn.lCustData = 0L;
+		ofn.lpfnHook = nullptr;
+		ofn.lpTemplateName = nullptr;
+
+		std::wstring retVal;
+		if (GetSaveFileNameW(&ofn) == 0)
+			retVal = L"";
 		else
-			paths.push_back(buffer);
+			retVal = buffer;
+
+		if (hResult == S_OK || hResult == S_FALSE)
+			CoUninitialize();
+
+		return retVal;
 	}
 
-	if (hResult == S_OK || hResult == S_FALSE)
-		CoUninitialize();
+	//-------------------------------------------------------------------------------------------------------------------//
 
-	return paths;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::vector<std::string> OpenFileWinGUI(const std::string& title,
-                                        const std::string& defaultPathAndFile,
-                                        const std::vector<std::pair<std::string, std::string>>& filterPatterns,
-                                        const bool allowMultipleSelects,
-                                        const bool allFiles)
-{
-	std::wstring wTitle;
-	std::wstring wDefaultPathAndFile;
-
-	std::vector<std::pair<std::wstring, std::wstring>> wFilterPatterns(filterPatterns.size());
-	for(uint32_t i = 0; i < wFilterPatterns.size(); i++)
-		wFilterPatterns[i] = { UTF8To16(filterPatterns[i].first), UTF8To16(filterPatterns[i].second) };
-
-	if (!title.empty())
-		wTitle = UTF8To16(title);
-	if (!defaultPathAndFile.empty())
-		wDefaultPathAndFile = UTF8To16(defaultPathAndFile);
-
-	std::vector<std::wstring> wPaths = OpenFileW(wTitle, wDefaultPathAndFile, wFilterPatterns, allowMultipleSelects, allFiles);
-
-	if (wPaths.empty())
-		return {};
-
-	std::vector<std::string> paths(wPaths.size());
-	for (uint32_t i = 0; i < paths.size(); i++)
-		paths[i] = UTF16To8(wPaths[i]);
-
-	return paths;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::wstring SelectFolderW(const std::wstring& title, const std::wstring& defaultPath)
-{
-	static std::wstring buffer;
-	buffer.resize(MaxPathOrCMD);
-
-	HRESULT hResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-
-	BROWSEINFOW info;
-	std::memset(&info, 0, sizeof(BROWSEINFOW));
-
-	info.hwndOwner = GetForegroundWindow();
-	info.pidlRoot = nullptr;
-	info.pszDisplayName = buffer.data();
-	info.lpszTitle = title.empty() ? nullptr : title.data();
-	if (hResult == S_OK || hResult == S_FALSE)
-		info.ulFlags = BIF_USENEWUI;
-	info.lpfn = BrowseCallbackProcW;
-	info.lParam = reinterpret_cast<LPARAM>(defaultPath.data());
-	info.iImage = -1;
-
-	std::wstring retVal;
-	LPITEMIDLIST lpItem = SHBrowseForFolderW(&info);
-	if(lpItem)
+	[[nodiscard]] std::string SaveFileWinGUI(const std::string& title,
+											const std::string& defaultPathAndFile,
+											const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+											const bool allFiles)
 	{
-		SHGetPathFromIDListW(lpItem, buffer.data());
-		retVal = buffer;
+		std::vector<std::pair<std::wstring, std::wstring>> wFilterPatterns(filterPatterns.size());
+		for (uint32_t i = 0; i < wFilterPatterns.size(); i++)
+		{
+			const auto& [name, extensions] = filterPatterns[i];
+			wFilterPatterns[i] = { UTF8To16(name), UTF8To16(extensions) };
+		}
+
+		const std::wstring wTitle = UTF8To16(title);
+		const std::wstring wDefaultPathAndFile = UTF8To16(defaultPathAndFile);
+
+		const std::wstring wPath = SaveFileW(wTitle, wDefaultPathAndFile, wFilterPatterns, allFiles);
+
+		if (wPath.empty())
+			return "";
+
+		return UTF16To8(wPath);
 	}
 
-	if (hResult == S_OK || hResult == S_FALSE)
-		CoUninitialize();
+	//-------------------------------------------------------------------------------------------------------------------//
 
-	return retVal;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::string SelectFolderWinGUI(const std::string& title, const std::string& defaultPath)
-{
-	std::wstring wTitle;
-	std::wstring wDefaultPath;
-
-	if (!title.empty())
-		wTitle = UTF8To16(title);
-	if (!defaultPath.empty())
-		wDefaultPath = UTF8To16(defaultPath);
-
-	const std::wstring wPath = SelectFolderW(wTitle, wDefaultPath);
-
-	if (wPath.empty())
-		return {};
-
-	return UTF16To8(wPath);
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-MD::Selection GetSelection(const int32_t response, const MD::Buttons buttons)
-{
-	switch(response)
+	[[nodiscard]] std::vector<std::wstring> OpenFileW(const std::wstring& title,
+													const std::wstring& defaultPathAndFile,
+													const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
+													const bool allowMultipleSelects,
+													const bool allFiles)
 	{
-	case IDOK:
-		return buttons == MD::Buttons::Quit ? MD::Selection::Quit : MD::Selection::OK;
+		HRESULT hResult = CoInitializeEx(nullptr, 0);
 
-	case IDCANCEL:
-		return MD::Selection::Cancel;
+		const std::wstring dirName = GetPathWithoutFinalSlashW(defaultPathAndFile);
+		std::wstring buffer = GetLastNameW(defaultPathAndFile);
 
-	case IDYES:
-		return MD::Selection::Yes;
+		if (allowMultipleSelects)
+			buffer.resize(MaxMultipleFiles * MaxPathOrCMD + 1);
+		else
+			buffer.resize(MaxPathOrCMD + 1);
 
-	case IDNO:
-		return MD::Selection::No;
+		std::wstring filterPatternsStr = L"All Files\n*.*\n";
+		if (!filterPatterns.empty())
+		{
+			filterPatternsStr.clear();
 
-	default:
-		return MD::Selection::None;
+			const auto& [firstName, firstExtensions] = filterPatterns[0];
+
+			if (firstName.empty())
+			{
+				filterPatternsStr += firstExtensions + L'\n';
+				filterPatternsStr += firstExtensions;
+			}
+			else
+				filterPatternsStr += firstName + L"(" + firstExtensions + L")\n" + firstExtensions;
+
+			for (uint32_t i = 1; i < filterPatterns.size(); ++i)
+			{
+				const auto& [name, extensions] = filterPatterns[i];
+
+				if (name.empty())
+				{
+					filterPatternsStr += L'\n' + extensions;
+					filterPatternsStr += L'\n' + extensions;
+				}
+				else
+					filterPatternsStr += L'\n' + name + L"(" + extensions + L")\n" + extensions;
+			}
+			filterPatternsStr += L'\n';
+			if (allFiles)
+				filterPatternsStr += L"All Files\n*.*\n";
+			else
+				filterPatternsStr += L'\n';
+		}
+
+		std::replace(filterPatternsStr.begin(), filterPatternsStr.end(), L'\n', L'\0');
+
+		OPENFILENAMEW ofn{};
+		ofn.lStructSize = sizeof(OPENFILENAMEW);
+		ofn.hwndOwner = GetForegroundWindow();
+		ofn.hInstance = nullptr;
+		ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.data();
+		ofn.lpstrCustomFilter = nullptr;
+		ofn.nMaxCustFilter = 0;
+		ofn.nFilterIndex = 1;
+		ofn.lpstrFile = buffer.data();
+
+		ofn.nMaxFile = static_cast<uint32_t>(buffer.size());
+		ofn.lpstrFileTitle = nullptr;
+		ofn.nMaxFileTitle = MaxPathOrCMD / 2;
+		ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.data();
+		ofn.lpstrTitle = title.empty() ? nullptr : title.data();
+		ofn.Flags = OFN_EXPLORER | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+		ofn.nFileOffset = 0;
+		ofn.nFileExtension = 0;
+		ofn.lpstrDefExt = nullptr;
+		ofn.lCustData = 0L;
+		ofn.lpfnHook = nullptr;
+		ofn.lpTemplateName = nullptr;
+		if (allowMultipleSelects)
+			ofn.Flags |= OFN_ALLOWMULTISELECT;
+
+		std::vector<std::wstring> paths{};
+		if (!GetOpenFileNameW(&ofn))
+			buffer = L"";
+		else
+		{
+			if (allowMultipleSelects)
+			{
+				std::wstring folder{};
+				do
+				{
+					const auto x = buffer.find_first_of(L'\0');
+					const std::wstring s = buffer.substr(0, x);
+
+					if (folder.empty())
+						folder = s + L"\\";
+					else
+						paths.push_back(folder + s);
+
+					buffer = buffer.substr(x + 1, buffer.size() - (x + 1));
+				} while (buffer[0] != L'\0');
+			}
+			else
+				paths.push_back(buffer);
+		}
+
+		if (hResult == S_OK || hResult == S_FALSE)
+			CoUninitialize();
+
+		return paths;
 	}
-}
 
-//-------------------------------------------------------------------------------------------------------------------//
+	//-------------------------------------------------------------------------------------------------------------------//
 
-uint32_t GetIcon(const MD::Style style)
-{
-	switch(style)
+	[[nodiscard]] std::vector<std::string> OpenFileWinGUI(const std::string& title,
+														const std::string& defaultPathAndFile,
+														const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+														const bool allowMultipleSelects,
+														const bool allFiles)
 	{
-	case MD::Style::Info:
-		return MB_ICONINFORMATION;
+		std::vector<std::pair<std::wstring, std::wstring>> wFilterPatterns(filterPatterns.size());
+		for(uint32_t i = 0; i < wFilterPatterns.size(); ++i)
+		{
+			const auto& [name, extensions] = filterPatterns[i];
+			wFilterPatterns[i] = { UTF8To16(name), UTF8To16(extensions) };
+		}
 
-	case MD::Style::Warning:
-		return MB_ICONWARNING;
+		std::wstring wTitle{};
+		if (!title.empty())
+			wTitle = UTF8To16(title);
 
-	case MD::Style::Error:
-		return MB_ICONERROR;
+		std::wstring wDefaultPathAndFile{};
+		if (!defaultPathAndFile.empty())
+			wDefaultPathAndFile = UTF8To16(defaultPathAndFile);
 
-	case MD::Style::Question:
-		return MB_ICONQUESTION;
+		const std::vector<std::wstring> wPaths = OpenFileW(wTitle, wDefaultPathAndFile, wFilterPatterns, allowMultipleSelects, allFiles);
+		if (wPaths.empty())
+			return {};
 
-	default:
-		return MB_ICONINFORMATION;
+		std::vector<std::string> paths(wPaths.size());
+		for (uint32_t i = 0; i < paths.size(); ++i)
+			paths[i] = UTF16To8(wPaths[i]);
+
+		return paths;
 	}
-}
 
-//-------------------------------------------------------------------------------------------------------------------//
+	//-------------------------------------------------------------------------------------------------------------------//
 
-uint32_t GetButtons(const MD::Buttons buttons)
-{
-	switch(buttons)
+	[[nodiscard]] std::wstring SelectFolderW(const std::wstring& title, const std::wstring& defaultPath)
 	{
-	case MD::Buttons::OK:
-	case MD::Buttons::Quit: //There's no 'Quit' button on Windows so use OK
-		return MB_OK;
+		std::wstring buffer(MaxPathOrCMD, L'\0');
 
-	case MD::Buttons::OKCancel:
-		return MB_OKCANCEL;
+		HRESULT hResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-	case MD::Buttons::YesNo:
-		return MB_YESNO;
+		BROWSEINFOW info{};
 
-	default:
-		return MB_OK;
+		info.hwndOwner = GetForegroundWindow();
+		info.pidlRoot = nullptr;
+		info.pszDisplayName = buffer.data();
+		info.lpszTitle = title.empty() ? nullptr : title.data();
+		if (hResult == S_OK || hResult == S_FALSE)
+			info.ulFlags = BIF_USENEWUI;
+		info.lpfn = BrowseCallbackProcW;
+		info.lParam = reinterpret_cast<LPARAM>(defaultPath.data());
+		info.iImage = -1;
+
+		std::wstring retVal{};
+		LPITEMIDLIST lpItem = SHBrowseForFolderW(&info);
+		if(lpItem)
+		{
+			SHGetPathFromIDListW(lpItem, buffer.data());
+			retVal = buffer;
+		}
+
+		if (hResult == S_OK || hResult == S_FALSE)
+			CoUninitialize();
+
+		return retVal;
 	}
-}
 
-//-------------------------------------------------------------------------------------------------------------------//
+	//-------------------------------------------------------------------------------------------------------------------//
 
-MD::Selection ShowMsgBoxWinGUI(const std::string& title,
-	const std::string& message,
-	const MD::Style style,
-	const MD::Buttons buttons)
-{
-	std::wstring wTitle;
-	std::wstring wMessage;
+	[[nodiscard]] std::string SelectFolderWinGUI(const std::string& title, const std::string& defaultPath)
+	{
+		std::wstring wTitle{};
+		if (!title.empty())
+			wTitle = UTF8To16(title);
 
-	if (!title.empty())
-		wTitle = UTF8To16(title);
-	if (!message.empty())
-		wMessage = UTF8To16(message);
+		std::wstring wDefaultPath{};
+		if (!defaultPath.empty())
+			wDefaultPath = UTF8To16(defaultPath);
 
-	uint32_t flags = MB_TASKMODAL;
+		const std::wstring wPath = SelectFolderW(wTitle, wDefaultPath);
 
-	flags |= GetIcon(style);
-	flags |= GetButtons(buttons);
+		if (wPath.empty())
+			return {};
 
-	return GetSelection(MessageBoxW(nullptr, wMessage.c_str(), wTitle.c_str(), flags), buttons);
-}
+		return UTF16To8(wPath);
+	}
 
-//-------------------------------------------------------------------------------------------------------------------//
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] constexpr MD::Selection GetSelection(const int32_t response, const MD::Buttons buttons)
+	{
+		switch(response)
+		{
+		case IDOK:
+			return buttons == MD::Buttons::Quit ? MD::Selection::Quit : MD::Selection::OK;
+
+		case IDCANCEL:
+			return MD::Selection::Cancel;
+
+		case IDYES:
+			return MD::Selection::Yes;
+
+		case IDNO:
+			return MD::Selection::No;
+
+		default:
+			return MD::Selection::None;
+		}
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] constexpr uint32_t GetIcon(const MD::Style style)
+	{
+		switch(style)
+		{
+		case MD::Style::Info:
+			return MB_ICONINFORMATION;
+
+		case MD::Style::Warning:
+			return MB_ICONWARNING;
+
+		case MD::Style::Error:
+			return MB_ICONERROR;
+
+		case MD::Style::Question:
+			return MB_ICONQUESTION;
+
+		default:
+			return MB_ICONINFORMATION;
+		}
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] constexpr uint32_t GetButtons(const MD::Buttons buttons)
+	{
+		switch(buttons)
+		{
+		case MD::Buttons::OK:
+		case MD::Buttons::Quit: //There's no 'Quit' button on Windows so use OK
+			return MB_OK;
+
+		case MD::Buttons::OKCancel:
+			return MB_OKCANCEL;
+
+		case MD::Buttons::YesNo:
+			return MB_YESNO;
+
+		default:
+			return MB_OK;
+		}
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] MD::Selection ShowMsgBoxWinGUI(const std::string& title,
+												const std::string& message,
+												const MD::Style style,
+												const MD::Buttons buttons)
+	{
+		std::wstring wTitle{};
+		if (!title.empty())
+			wTitle = UTF8To16(title);
+
+		std::wstring wMessage{};
+		if (!message.empty())
+			wMessage = UTF8To16(message);
+
+		uint32_t flags = MB_TASKMODAL;
+
+		flags |= GetIcon(style);
+		flags |= GetButtons(buttons);
+
+		return GetSelection(MessageBoxW(nullptr, wMessage.c_str(), wTitle.c_str(), flags), buttons);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
 
 //Linux land
 #else
 
-std::string Python3Name;
+	std::string Python3Name{};
 
-bool DetectPresence(const std::string& executable)
-{
-	std::string buffer;
-	buffer.resize(MaxPathOrCMD);
-	FILE* in;
-
-	std::string testedString = "which " + executable + " 2>/dev/null ";
-	in = popen(testedString.data(), "r");
-	if((fgets(buffer.data(), buffer.size(), in) != nullptr)
-		&& (buffer.find_first_of(':') == std::string::npos) && (buffer.find("no ") == std::string::npos))
+	[[nodiscard]] bool DetectPresence(const std::string& executable)
 	{
-		pclose(in);
-		return true;
-	}
-	else
-	{
-		pclose(in);
-		return false;
-	}
-}
+		std::string buffer(MaxPathOrCMD, '\0');
+		bool isPresent = false;
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool DirExists(const std::string& dirPath)
-{
-	DIR* dir;
-
-	if (dirPath.empty())
-		return false;
-
-	dir = opendir(dirPath.data());
-
-	if (!dir)
-		return false;
-
-	closedir(dir);
-	return true;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool GetEnvDISPLAY()
-{
-	return std::getenv("DISPLAY");
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool IsDarwin()
-{
-	static int32_t isDarwin = -1;
-	struct utsname lUtsname;
-
-	if (isDarwin < 0)
-		isDarwin = !uname(&lUtsname) && std::string(lUtsname.sysname) == "Darwin";
-
-	return isDarwin;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool GraphicMode()
-{
-	return (GetEnvDISPLAY() || (IsDarwin() && GetEnvDISPLAY()));
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool XPropPresent()
-{
-	static int32_t xpropPresent = -1;
-
-	if (xpropPresent < 0)
-		xpropPresent = DetectPresence("xprop");
-
-	return xpropPresent && GraphicMode();
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool ZenityPresent()
-{
-	static int32_t zenityPresent = -1;
-
-	if (zenityPresent < 0)
-		zenityPresent = DetectPresence("zenity");
-
-	return zenityPresent && GraphicMode();
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-int32_t Zenity3Present()
-{
-	static int32_t zenity3Present = -1;
-	FILE* in;
-	std::string buffer;
-	buffer.resize(MaxPathOrCMD);
-
-	if(zenity3Present < 0)
-	{
-		zenity3Present = 0;
-		if(ZenityPresent())
+		const std::string testedString = "which " + executable + " 2>/dev/null ";
+		FILE* const in = popen(testedString.c_str(), "r");
+		if((fgets(buffer.data(), buffer.size(), in) != nullptr)
+			&& (buffer.find_first_of(':') == std::string::npos) && (buffer.find("no ") == std::string::npos))
 		{
-			in = popen("zenity --version", "r");
-			if(fgets(buffer.data(), buffer.size(), in) != nullptr)
-			{
-				if(std::stoi(buffer) >= 3)
-				{
-					zenity3Present = 3;
-					int32_t temp = std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2));
-					if(temp >= 18)
-						zenity3Present = 5;
-					else if(temp >= 10)
-						zenity3Present = 4;
-				}
-				else if((std::stoi(buffer) == 2) && (std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2)) >= 32))
-					zenity3Present = 2;
-			}
-			pclose(in);
+			isPresent = true;
 		}
-	}
 
-	return GraphicMode() ? zenity3Present : 0;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool MateDialogPresent()
-{
-	static int32_t matedialogPresent = -1;
-
-	if(matedialogPresent < 0)
-		matedialogPresent = DetectPresence("matedialog");
-
-	return matedialogPresent && GraphicMode();
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool ShellementaryPresent()
-{
-	static int32_t shellementaryPresent = -1;
-
-	if(shellementaryPresent < 0)
-		shellementaryPresent = DetectPresence("shellementary");
-
-	return shellementaryPresent && GraphicMode();
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool QarmaPresent()
-{
-	static int32_t qarmaPresent = -1;
-
-	if(qarmaPresent < 0)
-		qarmaPresent = DetectPresence("qarma");
-
-	return qarmaPresent && GraphicMode();
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool YadPresent()
-{
-	static int32_t yadPresent = -1;
-
-	if(yadPresent < 0)
-		yadPresent = DetectPresence("yad");
-
-	return yadPresent && GraphicMode();
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool Python3Present()
-{
-	static int32_t python3Present = -1;
-
-	if(python3Present < 0)
-	{
-		python3Present = 0;
-		Python3Name = "python3";
-		if(DetectPresence(Python3Name))
-			python3Present = 1;
-		else
-		{
-			for(int32_t i = 10; i >= 0; i--)
-			{
-				Python3Name = "python3." + std::to_string(i);
-				if(DetectPresence(Python3Name))
-				{
-					python3Present = 1;
-					break;
-				}
-			}
-		}
-	}
-
-	return python3Present;
-}
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool TryCommand(const std::string& command)
-{
-	std::string buffer;
-	buffer.resize(MaxPathOrCMD);
-	FILE* in;
-
-	in = popen(command.data(), "r");
-	if(fgets(buffer.data(), buffer.size(), in) == nullptr)
-	{
 		pclose(in);
-		return true;
+		return isPresent;
 	}
 
-	pclose(in);
-	return false;
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool TKinter3Present()
-{
-	static int32_t tkinter3Present = -1;
-	std::string pythonCommand;
-	std::string pythonParams = "-S -c \"try:\n\timport tkinter;\nexcept:\n\tprint(0);\"";
-
-	if(tkinter3Present < 0)
+	[[nodiscard]] bool GetEnvDISPLAY()
 	{
-		tkinter3Present = 0;
-		if(Python3Present())
-		{
-			pythonCommand = Python3Name + " " + pythonParams;
-			tkinter3Present = TryCommand(pythonCommand);
-		}
+		return std::getenv("DISPLAY");
 	}
 
-	return tkinter3Present && GraphicMode() && !IsDarwin();
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-int32_t KDialogPresent()
-{
-	static int32_t kdialogPresent = -1;
-	std::string buffer;
-	buffer.resize(MaxPathOrCMD);
-	FILE* in;
-	std::string desktop;
-
-	if(kdialogPresent < 0)
+	[[nodiscard]] bool IsDarwin()
 	{
-		if(ZenityPresent())
+		static int32_t isDarwin = -1;
+		struct utsname lUtsname;
+
+		if (isDarwin < 0)
+			isDarwin = !uname(&lUtsname) && std::string_view(lUtsname.sysname) == "Darwin";
+
+		return isDarwin;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool GraphicMode()
+	{
+		return (GetEnvDISPLAY() || (IsDarwin() && GetEnvDISPLAY()));
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool XPropPresent()
+	{
+		static int32_t xpropPresent = -1;
+
+		if (xpropPresent < 0)
+			xpropPresent = DetectPresence("xprop");
+
+		return xpropPresent && GraphicMode();
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool ZenityPresent()
+	{
+		static int32_t zenityPresent = -1;
+
+		if (zenityPresent < 0)
+			zenityPresent = DetectPresence("zenity");
+
+		return zenityPresent && GraphicMode();
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] int32_t Zenity3Present()
+	{
+		static int32_t zenity3Present = -1;
+		std::string buffer(MaxPathOrCMD, '\0');
+
+		if(zenity3Present < 0)
 		{
-			auto desktopEnv = std::getenv("XDG_SESSION_DESKTOP");
-			if(!desktopEnv)
+			zenity3Present = 0;
+			if(ZenityPresent())
 			{
-				desktopEnv = std::getenv("XDG_CURRENT_DESKTOP");
-				if(!desktopEnv)
+				FILE* const in = popen("zenity --version", "r");
+				if(fgets(buffer.data(), buffer.size(), in) != nullptr)
 				{
-					desktopEnv = std::getenv("DESKTOP_SESSION");
-
-					if(!desktopEnv)
+					if(std::stoi(buffer) >= 3)
 					{
-						kdialogPresent = 0;
-						return kdialogPresent;
+						zenity3Present = 3;
+						const int32_t temp = std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2));
+						if(temp >= 18)
+							zenity3Present = 5;
+						else if(temp >= 10)
+							zenity3Present = 4;
+					}
+					else if((std::stoi(buffer) == 2) && (std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2)) >= 32))
+						zenity3Present = 2;
+				}
+				pclose(in);
+			}
+		}
+
+		return GraphicMode() ? zenity3Present : 0;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool MateDialogPresent()
+	{
+		static int32_t matedialogPresent = -1;
+
+		if(matedialogPresent < 0)
+			matedialogPresent = DetectPresence("matedialog");
+
+		return matedialogPresent && GraphicMode();
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool ShellementaryPresent()
+	{
+		static int32_t shellementaryPresent = -1;
+
+		if(shellementaryPresent < 0)
+			shellementaryPresent = DetectPresence("shellementary");
+
+		return shellementaryPresent && GraphicMode();
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool QarmaPresent()
+	{
+		static int32_t qarmaPresent = -1;
+
+		if(qarmaPresent < 0)
+			qarmaPresent = DetectPresence("qarma");
+
+		return qarmaPresent && GraphicMode();
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool YadPresent()
+	{
+		static int32_t yadPresent = -1;
+
+		if(yadPresent < 0)
+			yadPresent = DetectPresence("yad");
+
+		return yadPresent && GraphicMode();
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool Python3Present()
+	{
+		static int32_t python3Present = -1;
+
+		if(python3Present < 0)
+		{
+			python3Present = 0;
+			Python3Name = "python3";
+			if(DetectPresence(Python3Name))
+				python3Present = 1;
+			else
+			{
+				for(int32_t i = 10; i >= 0; --i)
+				{
+					Python3Name = "python3." + std::to_string(i);
+					if(DetectPresence(Python3Name))
+					{
+						python3Present = 1;
+						break;
 					}
 				}
 			}
-			desktop = std::string(desktopEnv);
-			if(desktop.empty() || ((desktop != "KDE" || desktop != "kde") && (desktop != "lxqt" || desktop != "LXQT")))
-			{
-				kdialogPresent = 0;
-				return kdialogPresent;
-			}
 		}
 
-		kdialogPresent = DetectPresence("kdialog");
-		if(kdialogPresent)
+		return python3Present;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool TryCommand(const std::string& command)
+	{
+		bool success = false;
+
+		std::string buffer(MaxPathOrCMD, '\0');
+		FILE* const in = popen(command.data(), "r");
+		if(fgets(buffer.data(), buffer.size(), in) == nullptr)
+			success = true;
+
+		pclose(in);
+		return success;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool TKinter3Present()
+	{
+		static int32_t tkinter3Present = -1;
+
+		if(tkinter3Present < 0)
 		{
-			in = popen("kdialog --attach 2>&1", "r");
-			if(fgets(buffer.data(), buffer.size(), in) != nullptr)
+			tkinter3Present = 0;
+			if(Python3Present())
 			{
-				if (buffer.find("Unknown") == std::string::npos)
-					kdialogPresent = 2;
+				static const std::string pythonParams = "-S -c \"try:\n\timport tkinter;\nexcept:\n\tprint(0);\"";
+				const std::string pythonCommand = Python3Name + " " + pythonParams;
+				tkinter3Present = TryCommand(pythonCommand);
 			}
-			pclose(in);
 		}
+
+		return tkinter3Present && GraphicMode() && !IsDarwin();
 	}
 
-	return GraphicMode() ? kdialogPresent : 0;
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool FileExists(const std::string& filePathAndName)
-{
-	FILE* in;
-
-	if(filePathAndName.empty())
-		return false;
-
-	in = fopen(filePathAndName.data(), "r");
-	if(!in)
-		return false;
-
-	fclose(in);
-	return true;
-}
-
-#endif
-
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::string GetPathWithoutFinalSlash(const std::string& source)
-{
-	std::string result;
-
-	if (!source.empty())
+	[[nodiscard]] int32_t KDialogPresent()
 	{
+		static int32_t kdialogPresent = -1;
+
+		if(kdialogPresent < 0)
+		{
+			if(ZenityPresent())
+			{
+				auto desktopEnv = std::getenv("XDG_SESSION_DESKTOP");
+				if(!desktopEnv)
+				{
+					desktopEnv = std::getenv("XDG_CURRENT_DESKTOP");
+					if(!desktopEnv)
+					{
+						desktopEnv = std::getenv("DESKTOP_SESSION");
+
+						if(!desktopEnv)
+						{
+							kdialogPresent = 0;
+							return kdialogPresent;
+						}
+					}
+				}
+				const std::string desktop(desktopEnv);
+				if(desktop.empty() || (desktop != "KDE" && desktop != "kde" && desktop != "lxqt" && desktop != "LXQT"))
+				{
+					kdialogPresent = 0;
+					return kdialogPresent;
+				}
+			}
+
+			kdialogPresent = DetectPresence("kdialog");
+			if(kdialogPresent)
+			{
+				FILE* const in = popen("kdialog --attach 2>&1", "r");
+				std::string buffer(MaxPathOrCMD, '\0');
+				if(fgets(buffer.data(), buffer.size(), in) != nullptr)
+				{
+					if (buffer.find("Unknown") == std::string::npos)
+						kdialogPresent = 2;
+				}
+				pclose(in);
+			}
+		}
+
+		return GraphicMode() ? kdialogPresent : 0;
+	}
+
+	#endif
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] CPP20Constexpr std::string GetPathWithoutFinalSlash(const std::string& source)
+	{
+		if(source.empty())
+			return "";
+
 		std::size_t index = source.find_last_of('/');
 		if (index == std::string_view::npos)
 			index = source.find_last_of('\\');
-		if (index != std::string_view::npos)
-			result = source.substr(0, index);
-		else
-			return {};
+
+		if (index == std::string_view::npos)
+			return "";
+
+		return source.substr(0, index);
 	}
-	else
-		return {};
 
-	return result;
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-std::string GetLastName(const std::string& source)
-{
-	std::string result;
-
-	if (!source.empty())
+	[[nodiscard]] CPP20Constexpr std::string GetLastName(const std::string& source)
 	{
+		if (source.empty())
+			return "";
+
 		std::size_t index = source.find_last_of('/');
 		if (index == std::string_view::npos)
 			index = source.find_last_of('\\');
-		if (index != std::string_view::npos)
-			result = source.substr(index + 1);
-		else
+
+		if (index == std::string_view::npos)
 			return source;
+
+		return source.substr(index + 1);
 	}
-	else
-		return {};
 
-	return result;
-}
+	//-------------------------------------------------------------------------------------------------------------------//
 
-//-------------------------------------------------------------------------------------------------------------------//
-
-bool FilenameValid(const std::string_view filenameWithoutPath)
-{
-	if (filenameWithoutPath.empty())
-		return false;
-
-	return std::all_of(filenameWithoutPath.cbegin(), filenameWithoutPath.cend(), [](const char c)
+	[[nodiscard]] CPP20Constexpr bool FilenameValid(const std::string_view filenameWithoutPath)
 	{
-		return c != '\\' && c != '/' && c != ':' && c != '*' && c != '?' &&
-		       c != '\"' && c != '<' && c != '>' && c != '|';
-	});
-}
+		if (filenameWithoutPath.empty())
+			return false;
 
-//-------------------------------------------------------------------------------------------------------------------//
+		return std::all_of(filenameWithoutPath.cbegin(), filenameWithoutPath.cend(), [](const char c)
+		{
+			return c != '\\' && c != '/' && c != ':' && c != '*' && c != '?' &&
+				   c != '\"' && c != '<' && c != '>' && c != '|';
+		});
+	}
 
-bool QuoteDetected(const std::string_view str)
-{
-	if (str.empty())
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] CPP20Constexpr bool QuoteDetected(const std::string_view str)
+	{
+		if (str.empty())
+			return false;
+
+		if (str.find_first_of('\'') != std::string_view::npos || str.find_first_of('\"') != std::string_view::npos)
+			return true;
+
 		return false;
+	}
 
-	if (str.find_first_of('\'') != std::string_view::npos || str.find_first_of('\"') != std::string_view::npos)
-		return true;
+	//-------------------------------------------------------------------------------------------------------------------//
 
-	return false;
+	[[nodiscard]] bool DirExists(const std::string& dirPath)
+	{
+		std::error_code ec{};
+
+		const bool isDir = std::filesystem::is_directory(dirPath, ec);
+		if(ec != std::error_code{})
+			return false;
+
+		const bool dirExists = std::filesystem::exists(dirPath, ec);
+		if(ec != std::error_code{})
+			return false;
+
+		return isDir && dirExists;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] bool FileExists(const std::string& filePathAndName)
+	{
+		std::error_code ec{};
+
+		const bool isFile = std::filesystem::is_regular_file(filePathAndName, ec);
+		if(ec != std::error_code{})
+			return false;
+
+		const bool fileExists = std::filesystem::exists(filePathAndName, ec);
+		if(ec != std::error_code{})
+			return false;
+
+		return isFile && fileExists;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
@@ -1017,8 +946,6 @@ std::string MD::SaveFile(const std::string& title,
                           const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                           const bool allFiles)
 {
-	static std::string buffer{};
-
 	if (QuoteDetected(title))
 		return SaveFile("INVALID TITLE WITH QUOTES", defaultPathAndFile, filterPatterns, allFiles);
 	if (QuoteDetected(defaultPathAndFile))
@@ -1032,7 +959,6 @@ std::string MD::SaveFile(const std::string& title,
 	std::string path{};
 #ifdef _WIN32
 	path = SaveFileWinGUI(title, defaultPathAndFile, filterPatterns, allFiles);
-	buffer = path;
 #else
 	std::string dialogString;
 	if(KDialogPresent())
@@ -1054,15 +980,15 @@ std::string MD::SaveFile(const std::string& title,
 		if(!filterPatterns.empty())
 		{
 			dialogString += " \"";
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(const auto& [name, extensions] : filterPatterns)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += filterPatterns[i].first + " (" + filterPatterns[i].second + ")\n";
+				if(extensions.find(';') == std::string::npos)
+					dialogString += name + " (" + extensions + ")\n";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
-					std::replace(extensions.begin(), extensions.end(), ';', ' ');
-					dialogString += filterPatterns[i].first + " (" + extensions + ")\n";
+					std::string exts = extensions;
+					std::replace(exts.begin(), exts.end(), ';', ' ');
+					dialogString += name + " (" + exts + ")\n";
 				}
 			}
 		}
@@ -1104,17 +1030,17 @@ std::string MD::SaveFile(const std::string& title,
 			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
 		if(!filterPatterns.empty())
 		{
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(const auto& [name, extensions] : filterPatterns)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				if(extensions.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + name + " | " + extensions + "'";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
+					std::string exts = extensions;
 					std::size_t index = 0;
-					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, " | ");
+					dialogString += " --file-filter='" + name + " | " + exts + "'";
 				}
 			}
 		}
@@ -1131,17 +1057,17 @@ std::string MD::SaveFile(const std::string& title,
 			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
 		if(!filterPatterns.empty())
 		{
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(const auto& [name, extensions] : filterPatterns)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				if(extensions.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + name + " | " + extensions + "'";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
+					std::string exts = extensions;
 					std::size_t index = 0;
-					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, " | ");
+					dialogString += " --file-filter='" + name + " | " + exts + "'";
 				}
 			}
 		}
@@ -1167,17 +1093,19 @@ std::string MD::SaveFile(const std::string& title,
 		if(!filterPatterns.empty() && filterPatterns[0].second[filterPatterns[0].second.size() - 1] != '*')
 		{
 			dialogString += "filetypes=(";
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(uint32_t i = 0; i < filterPatterns.size(); ++i)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += "('" + filterPatterns[i].first + "',('" + filterPatterns[i].second + "',)),";
+				const auto& [name, extensions] = filterPatterns[i];
+
+				if(extensions.find(';') == std::string::npos)
+					dialogString += "('" + name + "',('" + extensions + "',)),";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
+					std::string exts = extensions;
 					std::size_t index = 0;
-					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 1, "','");
-					dialogString += "('" + filterPatterns[i].first + "',('" + extensions + "',)),";
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, "','");
+					dialogString += "('" + name + "',('" + exts + "',)),";
 				}
 			}
 		}
@@ -1188,10 +1116,10 @@ std::string MD::SaveFile(const std::string& title,
 		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
 	}
 
-	FILE* in;
+	FILE* in = nullptr;
 	if(!(in = popen(dialogString.data(), "r")))
-		return {};
-	buffer.resize(MaxPathOrCMD);
+		return "";
+	std::string buffer(MaxPathOrCMD, '\0');
 	while (fgets(buffer.data(), buffer.size(), in) != nullptr){}
 	pclose(in);
 	uint32_t off = 0;
@@ -1202,27 +1130,27 @@ std::string MD::SaveFile(const std::string& title,
 		off++;
 	}
 	buffer.resize(off);
-	if (buffer[buffer.size() - 1] == '\n')
+	if (!buffer.empty() && buffer[buffer.size() - 1] == '\n')
 		buffer.pop_back();
 	if (buffer.empty())
-		return {};
+		return "";
 	path = buffer;
 #endif
 
 	if (path.empty())
-		return {};
+		return "";
 	std::string str = GetPathWithoutFinalSlash(path);
-	if (str.empty() && !DirExists(str))
-		return {};
+	if (str.empty() || !DirExists(str))
+		return "";
 	str = GetLastName(path);
 	if (!FilenameValid(str))
-		return {};
+		return "";
 
 	return path;
 }
 
 //-------------------------------------------------------------------------------------------------------------------//
-#include <iostream>
+
 std::vector<std::string> MD::OpenFile(const std::string& title,
                                        const std::string& defaultPathAndFile,
                                        const std::vector<std::pair<std::string, std::string>>& filterPatterns,
@@ -1243,7 +1171,7 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 #ifdef _WIN32
 	paths = OpenFileWinGUI(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 #else
-	std::string dialogString;
+	std::string dialogString{};
 	bool wasKDialog = false;
 	if(KDialogPresent())
 	{
@@ -1266,15 +1194,15 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 		if(!filterPatterns.empty())
 		{
 			dialogString += " \"";
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(const auto& [name, extensions] : filterPatterns)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += filterPatterns[i].first + " (" + filterPatterns[i].second + ")\n";
+				if(extensions.find(';') == std::string::npos)
+					dialogString += name + " (" + extensions + ")\n";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
-					std::replace(extensions.begin(), extensions.end(), ';', ' ');
-					dialogString += filterPatterns[i].first + " (" + extensions + ")\n";
+					std::string exts = extensions;
+					std::replace(exts.begin(), exts.end(), ';', ' ');
+					dialogString += name + " (" + exts + ")\n";
 				}
 			}
 		}
@@ -1318,17 +1246,17 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
 		if(!filterPatterns.empty())
 		{
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(const auto& [name, extensions] : filterPatterns)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				if(extensions.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + name + " | " + extensions + "'";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
+					std::string exts = extensions;
 					std::size_t index = 0;
-					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, " | ");
+					dialogString += " --file-filter='" + name + " | " + exts + "'";
 				}
 			}
 		}
@@ -1347,17 +1275,17 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
 		if(!filterPatterns.empty())
 		{
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(const auto& [name, extensions] : filterPatterns)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + filterPatterns[i].second + "'";
+				if(extensions.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + name + " | " + extensions + "'";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
+					std::string exts = extensions;
 					std::size_t index = 0;
-					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + filterPatterns[i].first + " | " + extensions + "'";
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, " | ");
+					dialogString += " --file-filter='" + name + " | " + exts + "'";
 				}
 			}
 		}
@@ -1375,8 +1303,7 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 			dialogString += "title='" + title + "',";
 		if(!defaultPathAndFile.empty())
 		{
-			std::string tmp;
-			tmp = GetPathWithoutFinalSlash(defaultPathAndFile);
+			std::string tmp = GetPathWithoutFinalSlash(defaultPathAndFile);
 			if(!tmp.empty())
 				dialogString += "initialdir='" + tmp + "',";
 			tmp = GetLastName(defaultPathAndFile);
@@ -1386,17 +1313,17 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 		if(!filterPatterns.empty() && filterPatterns[0].second[filterPatterns[0].second.size() - 1] != '*')
 		{
 			dialogString += "filetypes=(";
-			for(uint32_t i = 0; i < filterPatterns.size(); i++)
+			for(const auto& [name, extensions] : filterPatterns)
 			{
-				if(filterPatterns[i].second.find(';') == std::string::npos)
-					dialogString += "('" + filterPatterns[i].first + "',('" + filterPatterns[i].second + "',)),";
+				if(extensions.find(';') == std::string::npos)
+					dialogString += "('" + name + "',('" + extensions + "',)),";
 				else
 				{
-					std::string extensions = filterPatterns[i].second;
+					std::string exts = extensions;
 					std::size_t index = 0;
-					while((index = extensions.find(';')) != std::string::npos)
-						extensions.replace(index, 1, "','");
-					dialogString += "('" + filterPatterns[i].first + "',('" + extensions + "',)),";
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, "','");
+					dialogString += "('" + name + "',('" + exts + "',)),";
 				}
 			}
 		}
@@ -1414,7 +1341,7 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 	else
 		buffer.resize(MaxPathOrCMD + 1);
 
-	FILE* in;
+	FILE* in = nullptr;
 	if(!(in = popen(dialogString.data(), "r")))
 	{
 		buffer = {};
@@ -1442,7 +1369,7 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 	}
 	buffer.resize(off);
 
-	if(buffer[buffer.size() - 1] == '\n')
+	if(!buffer.empty() && buffer[buffer.size() - 1] == '\n')
 		buffer.pop_back();
 
 	if(wasKDialog && allowMultipleSelects)
@@ -1494,7 +1421,7 @@ std::string MD::OpenSingleFile(const std::string& title,
                            const std::vector<std::pair<std::string, std::string>>& filterPatterns,
                            const bool allFiles)
 {
-	std::vector<std::string> path = MD::OpenFile(title, defaultPathAndFile, filterPatterns, false, allFiles);
+	const std::vector<std::string> path = MD::OpenFile(title, defaultPathAndFile, filterPatterns, false, allFiles);
 	return path.empty() ? std::string() : path[0];
 }
 
@@ -1513,8 +1440,6 @@ std::vector<std::string> MD::OpenMultipleFiles(const std::string& title,
 
 std::string MD::SelectFolder(const std::string& title, const std::string& defaultPath)
 {
-	static std::string buffer;
-
 	if (QuoteDetected(title))
 		return MD::SelectFolder("INVALID TITLE WITH QUOTES", defaultPath);
 	if (QuoteDetected(defaultPath))
@@ -1523,9 +1448,8 @@ std::string MD::SelectFolder(const std::string& title, const std::string& defaul
 	std::string path{};
 #ifdef _WIN32
 	path = SelectFolderWinGUI(title, defaultPath);
-	buffer = path;
 #else
-	buffer.resize(MaxPathOrCMD);
+	std::string buffer(MaxPathOrCMD, '\0');
 	std::string dialogString;
 	if(KDialogPresent())
 	{
@@ -1593,9 +1517,9 @@ std::string MD::SelectFolder(const std::string& title, const std::string& defaul
 		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
 	}
 
-	FILE* in;
+	FILE* in = nullptr;
 	if(!(in = popen(dialogString.data(), "r")))
-		return {};
+		return "";
 	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
 	{}
 	uint32_t off = 0;
@@ -1607,16 +1531,16 @@ std::string MD::SelectFolder(const std::string& title, const std::string& defaul
 	}
 	buffer.resize(off);
 
-	if(buffer[buffer.size() - 1] == '\n')
+	if(!buffer.empty() && buffer[buffer.size() - 1] == '\n')
 		buffer.pop_back();
 
 	if(!DirExists(buffer))
-		return {};
+		return "";
 	path = buffer;
 #endif
 
 	if (path.empty())
-		return {};
+		return "";
 
 	return path;
 }
@@ -1628,8 +1552,6 @@ MD::Selection MD::ShowMsgBox(const std::string& title,
 							   const MD::Style style,
 							   const MD::Buttons buttons)
 {
-	std::string buffer;
-	buffer.resize(1024);
 	MD::Selection selection = MD::Selection::Error;
 
 	if (QuoteDetected(title))
@@ -1799,7 +1721,8 @@ MD::Selection MD::ShowMsgBox(const std::string& title,
 		dialogString += ");\nif res is False :\n\tprint (0)\nelse :\n\tprint (1)\n\"";
 	}
 
-	FILE* in;
+	std::string buffer(1024, '\0');
+	FILE* in = nullptr;
 	if(!(in = popen(dialogString.data(), "r")))
 		return {};
 	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
