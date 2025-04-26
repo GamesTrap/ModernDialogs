@@ -56,8 +56,42 @@ namespace
 {
 	//-------------------------------------------------------------------------------------------------------------------//
 
-	constexpr static int32_t MaxPathOrCMD = 1024;
-	constexpr static int32_t MaxMultipleFiles = 1024;
+	constexpr static int32_t MaxPathOrCMD = 1024; //TODO Get rid of this limit
+	constexpr static int32_t MaxMultipleFiles = 1024; //TODO Get rid of this limit
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] CPP20Constexpr std::string GetPathWithoutFinalSlash(const std::string& source)
+	{
+		if(source.empty())
+			return "";
+
+		std::size_t index = source.find_last_of('/');
+		if (index == std::string_view::npos)
+			index = source.find_last_of('\\');
+
+		if (index == std::string_view::npos)
+			return "";
+
+		return source.substr(0, index);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] CPP20Constexpr std::string GetLastName(const std::string& source)
+	{
+		if (source.empty())
+			return "";
+
+		std::size_t index = source.find_last_of('/');
+		if (index == std::string_view::npos)
+			index = source.find_last_of('\\');
+
+		if (index == std::string_view::npos)
+			return source;
+
+		return source.substr(index + 1);
+	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
@@ -841,41 +875,727 @@ namespace
 		return GraphicMode() ? kdialogPresent : 0;
 	}
 
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	constexpr std::string_view XPropCmd = " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] CPP20Constexpr std::string GetKDialogFileCommandFilterPart(const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                                     const bool allFiles)
+	{
+		std::string dialogString{};
+
+		if(!filterPatterns.empty())
+		{
+			dialogString += " \"";
+			for(const auto& [name, extensions] : filterPatterns)
+			{
+				if(extensions.find(';') == std::string::npos)
+					dialogString += name + " (" + extensions + ")\n";
+				else
+				{
+					std::string exts = extensions;
+					std::replace(exts.begin(), exts.end(), ';', ' ');
+					dialogString += name + " (" + exts + ")\n";
+				}
+			}
+		}
+
+		if(allFiles && filterPatterns.empty())
+			dialogString += "\"All Files (*.*)\"";
+		else if(allFiles && !filterPatterns.empty())
+			dialogString += "All Files (*.*)\"";
+		else if(!allFiles && !filterPatterns.empty())
+		{
+			dialogString.pop_back();
+			dialogString += "\"";
+		}
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetKDialogBaseFileCommand(const std::string& title,
+		                                                const std::string& defaultPathAndFile,
+		                                                const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                const bool allFiles,
+													    const std::string& commandAction)
+	{
+		std::string dialogString = "kdialog";
+
+		if (KDialogPresent() == 2 && XPropPresent())
+			dialogString += XPropCmd;
+
+		dialogString += " " + commandAction + " ";
+
+		if (!defaultPathAndFile.empty())
+		{
+			if (defaultPathAndFile[0] != '/')
+				dialogString += "$PWD/";
+			dialogString += "\"" + defaultPathAndFile + "\"";
+		}
+		else
+			dialogString += "$PWD/";
+
+		dialogString += GetKDialogFileCommandFilterPart(filterPatterns, allFiles);
+
+		if(!title.empty())
+			dialogString += " --title \"" + title + "\"";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetKDialogSaveFileCommand(const std::string& title,
+		                                                const std::string& defaultPathAndFile,
+		                                                const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                const bool allFiles)
+	{
+		return GetKDialogBaseFileCommand(title, defaultPathAndFile, filterPatterns, allFiles, "--getsavefilename");
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetKDialogOpenFileCommand(const std::string& title,
+		                                                const std::string& defaultPathAndFile,
+		                                                const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                const bool allowMultipleSelects,
+		                                                const bool allFiles)
+	{
+		std::string dialogAction = "--getopenfilename";
+		if(allowMultipleSelects)
+			dialogAction += " --multiple --separate-output";
+
+		return GetKDialogBaseFileCommand(title, defaultPathAndFile, filterPatterns, allFiles, dialogAction);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] CPP20Constexpr std::string GetGenericFileCommandFilterPart(const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                                     const bool allFiles)
+	{
+		std::string dialogString{};
+
+		if(!filterPatterns.empty())
+		{
+			for(const auto& [name, extensions] : filterPatterns)
+			{
+				if(extensions.find(';') == std::string::npos)
+					dialogString += " --file-filter='" + name + " | " + extensions + "'";
+				else
+				{
+					std::string exts = extensions;
+					std::size_t index = 0;
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, " | ");
+					dialogString += " --file-filter='" + name + " | " + exts + "'";
+				}
+			}
+		}
+
+		if(allFiles)
+			dialogString += " --file-filter='All Files | *'";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetYadBaseFileCommand(const std::string& title,
+		                                            const std::string& defaultPathAndFile,
+		                                            const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                            const bool allFiles,
+													const std::string& commandAction)
+	{
+		std::string dialogString = "yad " + commandAction;
+
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+
+		if(!defaultPathAndFile.empty())
+			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
+
+		dialogString += GetGenericFileCommandFilterPart(filterPatterns, allFiles);
+
+		dialogString += " 2>/dev/null ";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetYadSaveFileCommand(const std::string& title,
+		                                            const std::string& defaultPathAndFile,
+		                                            const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                            const bool allFiles)
+	{
+		return GetYadBaseFileCommand(title, defaultPathAndFile, filterPatterns, allFiles, "--file-selection --save --confirm-overwrite");
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetYadOpenFileCommand(const std::string& title,
+		                                            const std::string& defaultPathAndFile,
+		                                            const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+													const bool allowMultipleSelects,
+		                                            const bool allFiles)
+	{
+		std::string dialogAction = "--file-selection";
+		if(allowMultipleSelects)
+			dialogAction += " --multiple";
+
+		return GetYadBaseFileCommand(title, defaultPathAndFile, filterPatterns, allFiles, dialogAction);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] CPP20Constexpr std::string GetTKinter3FileCommandFilterPart(const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                                      const bool allFiles)
+	{
+		std::string dialogString{};
+
+		if(!filterPatterns.empty() && filterPatterns[0].second[filterPatterns[0].second.size() - 1] != '*')
+		{
+			dialogString += "filetypes=(";
+			for(const auto& [name, extensions] : filterPatterns)
+			{
+				if(extensions.find(';') == std::string::npos)
+					dialogString += "('" + name + "',('" + extensions + "',)),";
+				else
+				{
+					std::string exts = extensions;
+					std::size_t index = 0;
+					while((index = exts.find(';')) != std::string::npos)
+						exts.replace(index, 1, "','");
+					dialogString += "('" + name + "',('" + exts + "',)),";
+				}
+			}
+		}
+
+		if(allFiles && !filterPatterns.empty())
+			dialogString += "('All Files','*'))";
+		else if(!allFiles && !filterPatterns.empty())
+			dialogString += ")";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetTKinter3SaveFileCommand(const std::string& title,
+		                                                 const std::string& defaultPathAndFile,
+		                                                 const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                 const bool allFiles)
+	{
+		std::string dialogString = Python3Name + " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
+
+		dialogString += "res=filedialog.asksaveasfilename(";
+
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+
+		if(!defaultPathAndFile.empty())
+		{
+			std::string str = GetPathWithoutFinalSlash(defaultPathAndFile);
+			if(!str.empty())
+				dialogString += "initialdir='" + str + "',";
+			str = GetLastName(defaultPathAndFile);
+			if(!str.empty())
+				dialogString += "initialfile='" + str + "',";
+		}
+
+		dialogString += GetTKinter3FileCommandFilterPart(filterPatterns, allFiles);
+
+		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetTKinter3OpenFileCommand(const std::string& title,
+		                                                 const std::string& defaultPathAndFile,
+		                                                 const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+														 const bool allowMultipleSelects,
+		                                                 const bool allFiles)
+	{
+		std::string dialogString = Python3Name + " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
+
+		dialogString += "lFiles=filedialog.askopenfilename(";
+
+		if(allowMultipleSelects)
+			dialogString += "multiple=1,";
+
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+
+		if(!defaultPathAndFile.empty())
+		{
+			std::string tmp = GetPathWithoutFinalSlash(defaultPathAndFile);
+			if(!tmp.empty())
+				dialogString += "initialdir='" + tmp + "',";
+			tmp = GetLastName(defaultPathAndFile);
+			if(!tmp.empty())
+				dialogString += "initialfile='" + tmp + "',";
+		}
+
+		dialogString += GetTKinter3FileCommandFilterPart(filterPatterns, allFiles);
+
+		dialogString += ");\nif not isinstance(lFiles, tuple):\n\tprint(lFiles)\nelse:\n\tlFilesString=''\n\t";
+		dialogString += "for lFile in lFiles:\n\t\tlFilesString+=str(lFile)+'|'\n\tprint(lFilesString[:-1])\n\"";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetGenericBaseFileCommandPart(const std::string& title,
+		                                                    const std::string& defaultPathAndFile,
+		                                                    const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                    const bool allFiles)
+	{
+		std::string dialogString{};
+
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!defaultPathAndFile.empty())
+			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
+		dialogString += GetGenericFileCommandFilterPart(filterPatterns, allFiles);
+		dialogString += " 2>/dev/null ";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetGenericSaveFileCommandPart(const std::string& title,
+		                                                    const std::string& defaultPathAndFile,
+		                                                    const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                    const bool allFiles)
+	{
+		return " --file-selection --save --confirm-overwrite" + GetGenericBaseFileCommandPart(title, defaultPathAndFile, filterPatterns, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetGenericOpenFileCommandPart(const std::string& title,
+		                                                    const std::string& defaultPathAndFile,
+		                                                    const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+															const bool allowMultipleSelects,
+		                                                    const bool allFiles)
+	{
+		std::string dialogAction = " --file-selection";
+		if(allowMultipleSelects)
+			dialogAction += " --multiple";
+
+		return dialogAction + GetGenericBaseFileCommandPart(title, defaultPathAndFile, filterPatterns, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetZenitySaveFileCommand(const std::string& title,
+		                                               const std::string& defaultPathAndFile,
+		                                               const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                               const bool allFiles)
+	{
+		std::string dialogString = "zenity ";
+		if(Zenity3Present() >= 4 && XPropPresent())
+			dialogString += XPropCmd;
+
+		return dialogString + GetGenericSaveFileCommandPart(title, defaultPathAndFile, filterPatterns, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetZenityOpenFileCommand(const std::string& title,
+		                                               const std::string& defaultPathAndFile,
+		                                               const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+													   const bool allowMultipleSelects,
+		                                               const bool allFiles)
+	{
+		std::string dialogString = "zenity";
+		if(Zenity3Present() >= 4 && XPropPresent())
+			dialogString += XPropCmd;
+
+		return dialogString + GetGenericOpenFileCommandPart(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetMateDialogSaveFileCommand(const std::string& title,
+		                                                   const std::string& defaultPathAndFile,
+		                                                   const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                   const bool allFiles)
+	{
+		return std::string("matedialog") + GetGenericSaveFileCommandPart(title, defaultPathAndFile, filterPatterns, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetMateDialogOpenFileCommand(const std::string& title,
+		                                                   const std::string& defaultPathAndFile,
+		                                                   const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+														   const bool allowMultipleSelects,
+		                                                   const bool allFiles)
+	{
+		return std::string("matedialog") + GetGenericOpenFileCommandPart(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetShellementarySaveFileCommand(const std::string& title,
+		                                                      const std::string& defaultPathAndFile,
+		                                                      const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                                      const bool allFiles)
+	{
+		return std::string("shellementary") + GetGenericSaveFileCommandPart(title, defaultPathAndFile, filterPatterns, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetShellementaryOpenFileCommand(const std::string& title,
+		                                                      const std::string& defaultPathAndFile,
+		                                                      const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+															  const bool allowMultipleSelects,
+		                                                      const bool allFiles)
+	{
+		return std::string("shellementary") + GetGenericOpenFileCommandPart(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetQarmaSaveFileCommand(const std::string& title,
+		                                              const std::string& defaultPathAndFile,
+		                                              const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+		                                              const bool allFiles)
+	{
+		std::string dialogString = "qarma";
+		if(XPropPresent())
+			dialogString += " --attach$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+
+		return dialogString + GetGenericSaveFileCommandPart(title, defaultPathAndFile, filterPatterns, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetQarmaOpenFileCommand(const std::string& title,
+		                                              const std::string& defaultPathAndFile,
+		                                              const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+													  const bool allowMultipleSelects,
+		                                              const bool allFiles)
+	{
+		std::string dialogString = "qarma";
+		if(XPropPresent())
+			dialogString += " --attach$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+
+		return dialogString + GetGenericOpenFileCommandPart(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetGenericSelectFolderCommandPart(const std::string& title, const std::string& defaultPath)
+	{
+		return " --file-selection --directory" + GetGenericBaseFileCommandPart(title, defaultPath, {}, false);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetZenitySelectFolderCommand(const std::string& title, const std::string& defaultPath)
+	{
+		std::string dialogString = "zenity";
+		if(Zenity3Present() >= 4 && XPropPresent())
+			dialogString += XPropCmd;
+
+		return dialogString + GetGenericSelectFolderCommandPart(title, defaultPath);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetMateDialogSelectFolderCommand(const std::string& title, const std::string& defaultPath)
+	{
+		return "matedialog" + GetGenericSelectFolderCommandPart(title, defaultPath);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetShellementarySelectFolderCommand(const std::string& title, const std::string& defaultPath)
+	{
+		return "shellementary" + GetGenericSelectFolderCommandPart(title, defaultPath);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetQarmaSelectFolderCommand(const std::string& title, const std::string& defaultPath)
+	{
+		std::string dialogString = "qarma";
+		if(XPropPresent())
+			dialogString += XPropCmd;
+
+		return dialogString + GetGenericSelectFolderCommandPart(title, defaultPath);
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetKDialogSelectFolderCommand(const std::string& title, const std::string& defaultPath)
+	{
+		return GetKDialogBaseFileCommand(title, defaultPath, {}, false, "--getexistingdirectory");
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetYadSelectFolderCommand(const std::string& title, const std::string& defaultPath)
+	{
+		return GetYadBaseFileCommand(title, defaultPath, {}, false, "--file-section --directory");
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetTKinter3SelectFolderCommand(const std::string& title, const std::string& defaultPath)
+	{
+		std::string dialogString = Python3Name;
+		dialogString += " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
+		dialogString += "res=filedialog.askdirectory(";
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+		if(!defaultPath.empty())
+			dialogString += "initialdir='" + defaultPath + "'";
+		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetKDialogMsgBoxCommand(const std::string& title,
+													  const std::string& message,
+													  const MD::Style style,
+													  const MD::Buttons buttons)
+	{
+		std::string dialogString = "kdialog";
+		if (KDialogPresent() == 2 && XPropPresent())
+			dialogString += XPropCmd;
+
+		dialogString += " --";
+		if (buttons == MD::Buttons::OKCancel || buttons == MD::Buttons::YesNo)
+		{
+			if (style == MD::Style::Warning || style == MD::Style::Error)
+				dialogString += "warning";
+            dialogString += "yesno";
+		}
+		else if (style == MD::Style::Error)
+			dialogString += "error";
+		else if (style == MD::Style::Warning)
+			dialogString += "sorry";
+		else
+			dialogString += "msgbox";
+		dialogString += " \"";
+		if (!message.empty())
+			dialogString += message;
+		dialogString += "\"";
+		if (buttons == MD::Buttons::OKCancel)
+			dialogString += " --yes-label OK --no-label Cancel";
+        if (buttons == MD::Buttons::Quit)
+            dialogString += " --ok-label Quit";
+		if (!title.empty())
+			dialogString += " --title \"" + title + "\"";
+
+		dialogString += ";if [ $? = 0 ];then echo 1;else echo 0;fi";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetYadMsgBoxCommand(const std::string& title,
+		                                          const std::string& message,
+		                                          const MD::Style style,
+		                                          const MD::Buttons buttons)
+	{
+		std::string dialogString = "szAnswer=$(yad --";
+
+        if(buttons == MD::Buttons::OK)
+            dialogString += "button=OK:1";
+        else if(buttons == MD::Buttons::OKCancel)
+            dialogString += "button=OK:1 --button=Cancel:0";
+        else if(buttons == MD::Buttons::YesNo)
+            dialogString += "button=Yes:1 --button=No:0";
+        else if(style == MD::Style::Error)
+            dialogString += "error";
+        else if(style == MD::Style::Warning)
+            dialogString += "warning";
+        else if(style == MD::Style::Question)
+            dialogString += "question";
+        else
+            dialogString += "info";
+
+        if(!title.empty())
+            dialogString += " --title=\"" + title + "\"";
+        if(!message.empty())
+            dialogString += " --text=\"" + message + "\"";
+
+        dialogString += " 2>/dev/null ";
+        dialogString += ");echo $?";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetTKinter3MsgBoxCommand(const std::string& title,
+		                                               const std::string& message,
+		                                               const MD::Style style,
+		                                               const MD::Buttons buttons)
+	{
+		std::string dialogString = Python3Name;
+
+		dialogString += " -S -c \"import tkinter;from tkinter import messagebox;root=tkinter.Tk();root.withdraw();";
+		dialogString += "res=messagebox.";
+
+		if(buttons == MD::Buttons::OKCancel)
+			dialogString += "askokcancel(";
+		else if(buttons == MD::Buttons::YesNo)
+			dialogString += "askyesno(";
+		else
+			dialogString += "showinfo(";
+
+		dialogString += "icon='";
+
+		if(style == MD::Style::Error)
+			dialogString += "error";
+		else if(style == MD::Style::Question)
+			dialogString += "question";
+		else if(style == MD::Style::Warning)
+			dialogString += "warning";
+		else
+			dialogString += "info";
+
+		dialogString += "',";
+
+		if(!title.empty())
+			dialogString += "title='" + title + "',";
+		if(!message.empty())
+		{
+			std::string msg = message;
+			std::size_t p = std::string::npos;
+			while((p = msg.find('\n')) != std::string::npos)
+				msg.replace(p, 1, "\\n");
+
+			dialogString += "message='" + msg + "'";
+		}
+
+		dialogString += ");\nif res is False :\n\tprint (0)\nelse :\n\tprint (1)\n\"";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetGenericMsgBoxCommandPart(const std::string& title,
+		                                                  const std::string& message,
+		                                                  const MD::Style style,
+		                                                  const MD::Buttons buttons,
+														  const std::string& commandAction,
+														  const std::string& iconCommand = "")
+	{
+		std::string dialogString = "szAnswer=$(" + commandAction;
+
+		if(buttons == MD::Buttons::OKCancel)
+            dialogString += "question --ok-label=OK --cancel-label=Cancel";
+        else if(buttons == MD::Buttons::YesNo)
+            dialogString += "question";
+        else if(style == MD::Style::Error)
+            dialogString += "error";
+        else if(style == MD::Style::Warning)
+            dialogString += "warning";
+        else
+            dialogString += "info";
+
+		if(buttons == MD::Buttons::Quit)
+            dialogString += " --ok-label=Quit";
+
+		if(!title.empty())
+			dialogString += " --title=\"" + title + "\"";
+		if(!message.empty())
+			dialogString += " --text=\"" + message + "\"";
+
+		dialogString += iconCommand;
+
+		dialogString += " 2>/dev/null ";
+		dialogString += ");if [ $? = 0 ];then echo 1;else echo 0;fi";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetGenericMsgBoxIconCommandPart(const MD::Style style)
+	{
+		std::string dialogString = " --icon-name=dialog-";
+		if(style == MD::Style::Question)
+			dialogString += "question";
+		else if(style == MD::Style::Error)
+			dialogString += "error";
+		else if(style == MD::Style::Warning)
+			dialogString += "warning";
+		else
+			dialogString += "information";
+
+		return dialogString;
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetZenityMsgBoxCommand(const std::string& title,
+		                                             const std::string& message,
+		                                             const MD::Style style,
+		                                             const MD::Buttons buttons)
+	{
+		std::string commandAction = "zenity";
+		if(Zenity3Present() >= 4 && XPropPresent())
+			commandAction += XPropCmd;
+
+		return GetGenericMsgBoxCommandPart(title, message, style, buttons, commandAction, GetGenericMsgBoxIconCommandPart(style));
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetMateDialogMsgBoxCommand(const std::string& title,
+		                                                 const std::string& message,
+		                                                 const MD::Style style,
+		                                                 const MD::Buttons buttons)
+	{
+		return GetGenericMsgBoxCommandPart(title, message, style, buttons, "matedialog");
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetShellementaryMsgBoxCommand(const std::string& title,
+		                                                    const std::string& message,
+		                                                    const MD::Style style,
+		                                                    const MD::Buttons buttons)
+	{
+		return GetGenericMsgBoxCommandPart(title, message, style, buttons, "shellementary", GetGenericMsgBoxIconCommandPart(style));
+	}
+
+	//-------------------------------------------------------------------------------------------------------------------//
+
+	[[nodiscard]] std::string GetQarmaMsgBoxCommand(const std::string& title,
+		                                            const std::string& message,
+		                                            const MD::Style style,
+		                                            const MD::Buttons buttons)
+	{
+
+		std::string dialogString = "qarma";
+		if(XPropPresent())
+			dialogString += XPropCmd;
+
+		return GetGenericMsgBoxCommandPart(title, message, style, buttons, dialogString, GetGenericMsgBoxIconCommandPart(style));
+	}
+
 	#endif
-
-	//-------------------------------------------------------------------------------------------------------------------//
-
-	[[nodiscard]] CPP20Constexpr std::string GetPathWithoutFinalSlash(const std::string& source)
-	{
-		if(source.empty())
-			return "";
-
-		std::size_t index = source.find_last_of('/');
-		if (index == std::string_view::npos)
-			index = source.find_last_of('\\');
-
-		if (index == std::string_view::npos)
-			return "";
-
-		return source.substr(0, index);
-	}
-
-	//-------------------------------------------------------------------------------------------------------------------//
-
-	[[nodiscard]] CPP20Constexpr std::string GetLastName(const std::string& source)
-	{
-		if (source.empty())
-			return "";
-
-		std::size_t index = source.find_last_of('/');
-		if (index == std::string_view::npos)
-			index = source.find_last_of('\\');
-
-		if (index == std::string_view::npos)
-			return source;
-
-		return source.substr(index + 1);
-	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
@@ -960,161 +1680,21 @@ std::string MD::SaveFile(const std::string& title,
 #ifdef _WIN32
 	path = SaveFileWinGUI(title, defaultPathAndFile, filterPatterns, allFiles);
 #else
-	std::string dialogString;
+	std::string dialogString{};
 	if(KDialogPresent())
-	{
-		dialogString = "kdialog";
-		if (KDialogPresent() == 2 && XPropPresent())
-			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		dialogString += " --getsavefilename ";
-
-		if (!defaultPathAndFile.empty())
-		{
-			if (defaultPathAndFile[0] != '/')
-				dialogString += "$PWD/";
-			dialogString += "\"" + defaultPathAndFile + "\"";
-		}
-		else
-			dialogString += "$PWD/";
-
-		if(!filterPatterns.empty())
-		{
-			dialogString += " \"";
-			for(const auto& [name, extensions] : filterPatterns)
-			{
-				if(extensions.find(';') == std::string::npos)
-					dialogString += name + " (" + extensions + ")\n";
-				else
-				{
-					std::string exts = extensions;
-					std::replace(exts.begin(), exts.end(), ';', ' ');
-					dialogString += name + " (" + exts + ")\n";
-				}
-			}
-		}
-		if(allFiles && filterPatterns.empty())
-			dialogString += "\"All Files (*.*)\"";
-		else if(allFiles && !filterPatterns.empty())
-			dialogString += "All Files (*.*)\"";
-		else if(!allFiles && !filterPatterns.empty())
-		{
-			dialogString.pop_back();
-			dialogString += "\"";
-		}
-		if(!title.empty())
-			dialogString += " --title \"" + title + "\"";
-	}
-	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
-	{
-		if(ZenityPresent())
-		{
-			dialogString = "zenity ";
-			if(Zenity3Present() >= 4 && XPropPresent())
-				dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		else if(MateDialogPresent())
-			dialogString = "matedialog";
-		else if(ShellementaryPresent())
-			dialogString = "shellementary";
-		else
-		{
-			dialogString = "qarma";
-			if(XPropPresent())
-				dialogString += " --attach$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		dialogString += " --file-selection --save --confirm-overwrite";
-
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-		if(!defaultPathAndFile.empty())
-			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
-		if(!filterPatterns.empty())
-		{
-			for(const auto& [name, extensions] : filterPatterns)
-			{
-				if(extensions.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + name + " | " + extensions + "'";
-				else
-				{
-					std::string exts = extensions;
-					std::size_t index = 0;
-					while((index = exts.find(';')) != std::string::npos)
-						exts.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + name + " | " + exts + "'";
-				}
-			}
-		}
-		if(allFiles)
-			dialogString += " --file-filter='All Files | *'";
-		dialogString += " 2>/dev/null ";
-	}
+		dialogString = GetKDialogSaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
+	else if(ZenityPresent())
+		dialogString = GetZenitySaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
+	else if(MateDialogPresent())
+		dialogString = GetMateDialogSaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
+	else if(ShellementaryPresent())
+		dialogString = GetShellementarySaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
+	else if(QarmaPresent())
+		dialogString = GetQarmaSaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
 	else if(YadPresent())
-	{
-		dialogString = "yad --file-selection --save --confirm-overwrite";
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-		if(!defaultPathAndFile.empty())
-			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
-		if(!filterPatterns.empty())
-		{
-			for(const auto& [name, extensions] : filterPatterns)
-			{
-				if(extensions.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + name + " | " + extensions + "'";
-				else
-				{
-					std::string exts = extensions;
-					std::size_t index = 0;
-					while((index = exts.find(';')) != std::string::npos)
-						exts.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + name + " | " + exts + "'";
-				}
-			}
-		}
-		if(allFiles)
-			dialogString += " --file-filter='All Files | *'";
-		dialogString += " 2>/dev/null ";
-	}
+		dialogString = GetYadSaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
 	else if(TKinter3Present())
-	{
-		dialogString = Python3Name + " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
-		dialogString += "res=filedialog.asksaveasfilename(";
-		if(!title.empty())
-			dialogString += "title='" + title + "',";
-		if(!defaultPathAndFile.empty())
-		{
-			std::string str = GetPathWithoutFinalSlash(defaultPathAndFile);
-			if(!str.empty())
-				dialogString += "initialdir='" + str + "',";
-			str = GetLastName(defaultPathAndFile);
-			if(!str.empty())
-				dialogString += "initialfile='" + str + "',";
-		}
-		if(!filterPatterns.empty() && filterPatterns[0].second[filterPatterns[0].second.size() - 1] != '*')
-		{
-			dialogString += "filetypes=(";
-			for(uint32_t i = 0; i < filterPatterns.size(); ++i)
-			{
-				const auto& [name, extensions] = filterPatterns[i];
-
-				if(extensions.find(';') == std::string::npos)
-					dialogString += "('" + name + "',('" + extensions + "',)),";
-				else
-				{
-					std::string exts = extensions;
-					std::size_t index = 0;
-					while((index = exts.find(';')) != std::string::npos)
-						exts.replace(index, 1, "','");
-					dialogString += "('" + name + "',('" + exts + "',)),";
-				}
-			}
-		}
-		if(allFiles && !filterPatterns.empty())
-			dialogString += "('All Files','*'))";
-		else if(!allFiles && !filterPatterns.empty())
-			dialogString += ")";
-		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
-	}
+		dialogString = GetTKinter3SaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
 
 	FILE* in = nullptr;
 	if(!(in = popen(dialogString.data(), "r")))
@@ -1176,164 +1756,20 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 	if(KDialogPresent())
 	{
 		wasKDialog = true;
-		dialogString = "kdialog ";
-		if(KDialogPresent() == 2 && XPropPresent())
-			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		dialogString += " --getopenfilename ";
-		if(allowMultipleSelects)
-			dialogString += "--multiple --separate-output ";
-		if(!defaultPathAndFile.empty())
-		{
-			if(defaultPathAndFile[0] != '/')
-				dialogString += "$PWD/";
-			dialogString += "\"" + defaultPathAndFile + "\"";
-		}
-		else
-			dialogString += "$PWD/";
-
-		if(!filterPatterns.empty())
-		{
-			dialogString += " \"";
-			for(const auto& [name, extensions] : filterPatterns)
-			{
-				if(extensions.find(';') == std::string::npos)
-					dialogString += name + " (" + extensions + ")\n";
-				else
-				{
-					std::string exts = extensions;
-					std::replace(exts.begin(), exts.end(), ';', ' ');
-					dialogString += name + " (" + exts + ")\n";
-				}
-			}
-		}
-		if(allFiles && filterPatterns.empty())
-			dialogString += "\"All Files (*.*)\"";
-		else if(allFiles && !filterPatterns.empty())
-			dialogString += "All Files (*.*)\"";
-		else if(!allFiles && !filterPatterns.empty())
-		{
-			dialogString.pop_back();
-			dialogString += "\"";
-		}
-		if(!title.empty())
-			dialogString += " --title \"" + title + "\"";
+		dialogString = GetKDialogOpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 	}
-	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
-	{
-		if(ZenityPresent())
-		{
-			dialogString = "zenity";
-			if(Zenity3Present() >= 4 && XPropPresent())
-				dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		else if(MateDialogPresent())
-			dialogString = "matedialog";
-		else if(ShellementaryPresent())
-			dialogString = "shellementary";
-		else
-		{
-			dialogString = "qarma";
-			if(XPropPresent())
-				dialogString += " --attach=$(xprop --root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		dialogString += " --file-selection";
-
-		if(allowMultipleSelects)
-			dialogString += " --multiple";
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-		if(!defaultPathAndFile.empty())
-			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
-		if(!filterPatterns.empty())
-		{
-			for(const auto& [name, extensions] : filterPatterns)
-			{
-				if(extensions.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + name + " | " + extensions + "'";
-				else
-				{
-					std::string exts = extensions;
-					std::size_t index = 0;
-					while((index = exts.find(';')) != std::string::npos)
-						exts.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + name + " | " + exts + "'";
-				}
-			}
-		}
-		if(allFiles)
-			dialogString += " --file-filter='All Files | *'";
-		dialogString += " 2>/dev/null ";
-	}
+	else if(ZenityPresent())
+		dialogString = GetZenityOpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	else if(MateDialogPresent())
+		dialogString = GetMateDialogOpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	else if(ShellementaryPresent())
+		dialogString = GetShellementaryOpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
+	else if(QarmaPresent())
+		dialogString = GetQarmaOpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 	else if(YadPresent())
-	{
-		dialogString = "yad --file-selection";
-		if(allowMultipleSelects)
-			dialogString += " --multiple";
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-		if(!defaultPathAndFile.empty())
-			dialogString += " --filename=\"" + defaultPathAndFile + "\"";
-		if(!filterPatterns.empty())
-		{
-			for(const auto& [name, extensions] : filterPatterns)
-			{
-				if(extensions.find(';') == std::string::npos)
-					dialogString += " --file-filter='" + name + " | " + extensions + "'";
-				else
-				{
-					std::string exts = extensions;
-					std::size_t index = 0;
-					while((index = exts.find(';')) != std::string::npos)
-						exts.replace(index, 1, " | ");
-					dialogString += " --file-filter='" + name + " | " + exts + "'";
-				}
-			}
-		}
-		if(allFiles)
-			dialogString += " --file-filter='All Files | *'";
-		dialogString += " 2>/dev/null ";
-	}
+		dialogString = GetYadOpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 	else if(TKinter3Present())
-	{
-		dialogString = Python3Name + " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
-		dialogString += "lFiles=filedialog.askopenfilename(";
-		if(allowMultipleSelects)
-			dialogString += "multiple=1,";
-		if(!title.empty())
-			dialogString += "title='" + title + "',";
-		if(!defaultPathAndFile.empty())
-		{
-			std::string tmp = GetPathWithoutFinalSlash(defaultPathAndFile);
-			if(!tmp.empty())
-				dialogString += "initialdir='" + tmp + "',";
-			tmp = GetLastName(defaultPathAndFile);
-			if(!tmp.empty())
-				dialogString += "initialfile='" + tmp + "',";
-		}
-		if(!filterPatterns.empty() && filterPatterns[0].second[filterPatterns[0].second.size() - 1] != '*')
-		{
-			dialogString += "filetypes=(";
-			for(const auto& [name, extensions] : filterPatterns)
-			{
-				if(extensions.find(';') == std::string::npos)
-					dialogString += "('" + name + "',('" + extensions + "',)),";
-				else
-				{
-					std::string exts = extensions;
-					std::size_t index = 0;
-					while((index = exts.find(';')) != std::string::npos)
-						exts.replace(index, 1, "','");
-					dialogString += "('" + name + "',('" + exts + "',)),";
-				}
-			}
-		}
-		if(allFiles && !filterPatterns.empty())
-			dialogString += "('All Files','*'))";
-		else if(!allFiles && !filterPatterns.empty())
-			dialogString += ")";
-		dialogString += ");\nif not isinstance(lFiles, tuple):\n\tprint(lFiles)\nelse:\n\tlFilesString=''\n\t";
-		dialogString += "for lFile in lFiles:\n\t\tlFilesString+=str(lFile)+'|'\n\tprint(lFilesString[:-1])\n\"";
-	}
+		dialogString = GetTKinter3OpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 
 	std::string buffer;
 	if (allowMultipleSelects)
@@ -1452,70 +1888,19 @@ std::string MD::SelectFolder(const std::string& title, const std::string& defaul
 	std::string buffer(MaxPathOrCMD, '\0');
 	std::string dialogString;
 	if(KDialogPresent())
-	{
-		dialogString = "kdialog";
-		if(KDialogPresent() == 2 && XPropPresent())
-			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		dialogString += " --getexistingdirectory ";
-
-		if(!defaultPath.empty())
-		{
-			if(defaultPath[0] != '/')
-				dialogString += "$PWD/";
-			dialogString += "\"" + defaultPath + "\"";
-		}
-		else
-			dialogString += "$PWD/";
-
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-	}
-	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
-	{
-		if(ZenityPresent())
-		{
-			dialogString = "zenity";
-			if(Zenity3Present() >= 4 && XPropPresent())
-				dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		else if(MateDialogPresent())
-			dialogString = "matedialog";
-		else if(ShellementaryPresent())
-			dialogString = "shellementary";
-		else
-		{
-			dialogString = "qarma";
-			if(XPropPresent())
-				dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		dialogString += " --file-selection --directory";
-
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-		if(!defaultPath.empty())
-			dialogString += " --filename=\"" + defaultPath + "\"";
-		dialogString += " 2>/dev/null ";
-	}
+		dialogString = GetKDialogSelectFolderCommand(title, defaultPath);
+	else if(ZenityPresent())
+		dialogString = GetZenitySelectFolderCommand(title, defaultPath);
+	else if(MateDialogPresent())
+		dialogString = GetMateDialogSelectFolderCommand(title, defaultPath);
+	else if(ShellementaryPresent())
+		dialogString = GetShellementarySelectFolderCommand(title, defaultPath);
+	else if(QarmaPresent())
+		dialogString = GetQarmaSelectFolderCommand(title, defaultPath);
 	else if(YadPresent())
-	{
-		dialogString = "yad --file-selection --directory";
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-		if(!defaultPath.empty())
-			dialogString += " --filename=\"" + defaultPath + "\"";
-		dialogString += " 2>/dev/null ";
-	}
+		dialogString = GetYadSelectFolderCommand(title, defaultPath);
 	else if(TKinter3Present())
-	{
-		dialogString = Python3Name;
-		dialogString += " -S -c \"import tkinter;from tkinter import filedialog;root=tkinter.Tk();root.withdraw();";
-		dialogString += "res=filedialog.askdirectory(";
-		if(!title.empty())
-			dialogString += "title='" + title + "',";
-		if(!defaultPath.empty())
-			dialogString += "initialdir='" + defaultPath + "'";
-		dialogString += ");\nif not isinstance(res, tuple):\n\tprint(res)\n\"";
-	}
+		dialogString = GetTKinter3SelectFolderCommand(title, defaultPath);
 
 	FILE* in = nullptr;
 	if(!(in = popen(dialogString.data(), "r")))
@@ -1564,162 +1949,19 @@ MD::Selection MD::ShowMsgBox(const std::string& title,
 #else
 	std::string dialogString;
 	if(KDialogPresent())
-	{
-		dialogString = "kdialog";
-		if (KDialogPresent() == 2 && XPropPresent())
-			dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-
-		dialogString += " --";
-		if (buttons == MD::Buttons::OKCancel || buttons == MD::Buttons::YesNo)
-		{
-			if (style == MD::Style::Warning || style == MD::Style::Error)
-				dialogString += "warning";
-            dialogString += "yesno";
-		}
-		else if (style == MD::Style::Error)
-			dialogString += "error";
-		else if (style == MD::Style::Warning)
-			dialogString += "sorry";
-		else
-			dialogString += "msgbox";
-		dialogString += " \"";
-		if (!message.empty())
-			dialogString += message;
-		dialogString += "\"";
-		if (buttons == MD::Buttons::OKCancel)
-			dialogString += " --yes-label OK --no-label Cancel";
-        if (buttons == MD::Buttons::Quit)
-            dialogString += " --ok-label Quit";
-		if (!title.empty())
-			dialogString += " --title \"" + title + "\"";
-
-		dialogString += ";if [ $? = 0 ];then echo 1;else echo 0;fi";
-	}
-	else if(ZenityPresent() || MateDialogPresent() || ShellementaryPresent() || QarmaPresent())
-	{
-		if(ZenityPresent())
-		{
-			dialogString = "szAnswer=$(zenity";
-            if(Zenity3Present() >= 4 && XPropPresent())
-                dialogString += " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		else if(MateDialogPresent())
-			dialogString = "szAnswer=$(matedialog";
-		else if(ShellementaryPresent())
-			dialogString = "szAnswer=$(shellementary";
-		else
-		{
-			dialogString = "szAnswer=$(qarma";
-            if(XPropPresent())
-                dialogString += " --attach=$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
-		}
-		dialogString += " --";
-
-		if(buttons == MD::Buttons::OKCancel)
-            dialogString += "question --ok-label=OK --cancel-label=Cancel";
-        else if(buttons == MD::Buttons::YesNo)
-            dialogString += "question";
-        else if(style == MD::Style::Error)
-            dialogString += "error";
-        else if(style == MD::Style::Warning)
-            dialogString += "warning";
-        else
-            dialogString += "info";
-
-		if(buttons == MD::Buttons::Quit)
-            dialogString += " --ok-label=Quit";
-
-		if(!title.empty())
-			dialogString += " --title=\"" + title + "\"";
-		if(!message.empty())
-			dialogString += " --text=\"" + message + "\"";
-
-		if (Zenity3Present() >= 3 ||
-			(!ZenityPresent() &&
-			(ShellementaryPresent() || QarmaPresent())))
-        {
-            dialogString += " --icon-name=dialog-";
-            if(style == MD::Style::Question)
-                dialogString += "question";
-            else if(style == MD::Style::Error)
-                dialogString += "error";
-            else if(style == MD::Style::Warning)
-                dialogString += "warning";
-            else
-                dialogString += "information";
-        }
-
-		dialogString += " 2>/dev/null ";
-		dialogString += ");if [ $? = 0 ];then echo 1;else echo 0;fi";
-	}
+		dialogString = GetKDialogMsgBoxCommand(title, message, style, buttons);
+	else if(ZenityPresent())
+		dialogString = GetZenityMsgBoxCommand(title, message, style, buttons);
+	else if(MateDialogPresent())
+		dialogString = GetMateDialogMsgBoxCommand(title, message, style, buttons);
+	else if(ShellementaryPresent())
+		dialogString = GetShellementaryMsgBoxCommand(title, message, style, buttons);
+	else if(QarmaPresent())
+		dialogString = GetQarmaMsgBoxCommand(title, message, style, buttons);
 	else if(YadPresent())
-	{
-		dialogString += "szAnswer=$(yad --";
-
-        if(buttons == MD::Buttons::OK)
-            dialogString += "button=OK:1";
-        else if(buttons == MD::Buttons::OKCancel)
-            dialogString += "button=OK:1 --button=Cancel:0";
-        else if(buttons == MD::Buttons::YesNo)
-            dialogString += "button=Yes:1 --button=No:0";
-        else if(style == MD::Style::Error)
-            dialogString += "error";
-        else if(style == MD::Style::Warning)
-            dialogString += "warning";
-        else if(style == MD::Style::Question)
-            dialogString += "question";
-        else
-            dialogString += "info";
-
-        if(!title.empty())
-            dialogString += " --title=\"" + title + "\"";
-        if(!message.empty())
-            dialogString += " --text=\"" + message + "\"";
-
-        dialogString += " 2>/dev/null ";
-        dialogString += ");echo $?";
-	}
+		dialogString = GetYadMsgBoxCommand(title, message, style, buttons);
 	else if(TKinter3Present())
-	{
-		dialogString = Python3Name;
-
-		dialogString += " -S -c \"import tkinter;from tkinter import messagebox;root=tkinter.Tk();root.withdraw();";
-		dialogString += "res=messagebox.";
-
-		if(buttons == MD::Buttons::OKCancel)
-			dialogString += "askokcancel(";
-		else if(buttons == MD::Buttons::YesNo)
-			dialogString += "askyesno(";
-		else
-			dialogString += "showinfo(";
-
-		dialogString += "icon='";
-
-		if(style == MD::Style::Error)
-			dialogString += "error";
-		else if(style == MD::Style::Question)
-			dialogString += "question";
-		else if(style == MD::Style::Warning)
-			dialogString += "warning";
-		else
-			dialogString += "info";
-
-		dialogString += "',";
-
-		if(!title.empty())
-			dialogString += "title='" + title + "',";
-		if(!message.empty())
-		{
-			std::string msg = message;
-			std::size_t p = std::string::npos;
-			while((p = msg.find('\n')) != std::string::npos)
-				msg.replace(p, 1, "\\n");
-
-			dialogString += "message='" + msg + "'";
-		}
-
-		dialogString += ");\nif res is False :\n\tprint (0)\nelse :\n\tprint (1)\n\"";
-	}
+		dialogString = GetTKinter3MsgBoxCommand(title, message, style, buttons);
 
 	std::string buffer(1024, '\0');
 	FILE* in = nullptr;
