@@ -57,8 +57,8 @@ namespace
 {
 	//-------------------------------------------------------------------------------------------------------------------//
 
-	constexpr static int32_t MaxPathOrCMD = 1024; //TODO Get rid of this limit
-	constexpr static int32_t MaxMultipleFiles = 1024; //TODO Get rid of this limit
+	constexpr static int32_t MaxPathOrCMD = 1024;
+	constexpr static int32_t MaxMultipleFiles = 1024;
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
@@ -169,7 +169,7 @@ namespace
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
-	[[nodiscard]] BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM)
+	[[nodiscard]] BOOL CALLBACK BrowseCallbackProcWEnum(HWND hwndChild, LPARAM /*lp*/)
 	{
 		std::wstring buffer(255, L'\0');
 		GetClassNameW(hwndChild, buffer.data(), static_cast<int32_t>(buffer.size()));
@@ -207,9 +207,9 @@ namespace
 	//-------------------------------------------------------------------------------------------------------------------//
 
 	[[nodiscard]] std::wstring SaveFileW(const std::wstring& title,
-										const std::wstring& defaultPathAndFile,
-										const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
-										const bool allFiles)
+										 const std::wstring& defaultPathAndFile,
+										 const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
+										 const bool allFiles)
 	{
 		std::wstring defaultExtension = L"*.*";
 		std::wstring filterPatternsStr = L"All Files\n*.*\n";
@@ -255,49 +255,35 @@ namespace
 
 		std::replace(filterPatternsStr.begin(), filterPatternsStr.end(), L'\n', L'\0');
 
-		OPENFILENAMEW ofn{};
-
 		buffer.resize(MaxPathOrCMD);
+
+		OPENFILENAMEW ofn{};
 		ofn.lStructSize = sizeof(OPENFILENAMEW);
 		ofn.hwndOwner = GetForegroundWindow();
 		ofn.hInstance = nullptr;
-		ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.data();
-		ofn.lpstrCustomFilter = nullptr;
-		ofn.nMaxCustFilter = 0;
+		ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.c_str();
 		ofn.nFilterIndex = 1;
 		ofn.lpstrFile = buffer.data();
-
-		ofn.nMaxFile = MaxPathOrCMD;
-		ofn.lpstrFileTitle = nullptr;
-		ofn.nMaxFileTitle = MaxPathOrCMD / 2;
-		ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.data();
-		ofn.lpstrTitle = title.empty() ? nullptr : title.data();
+		ofn.nMaxFile = static_cast<DWORD>(buffer.size());
+		ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.c_str();
+		ofn.lpstrTitle = title.empty() ? nullptr : title.c_str();
 		ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST;
-		ofn.nFileOffset = 0;
-		ofn.nFileExtension = 0;
-		ofn.lpstrDefExt = defaultExtension.data();
-		ofn.lCustData = 0L;
-		ofn.lpfnHook = nullptr;
-		ofn.lpTemplateName = nullptr;
+		ofn.lpstrDefExt = defaultExtension.c_str();
 
-		std::wstring retVal;
-		if (GetSaveFileNameW(&ofn) == 0)
-			retVal = L"";
-		else
-			retVal = buffer;
+		const BOOL dlgRes = GetSaveFileNameW(&ofn);
 
 		if (hResult == S_OK || hResult == S_FALSE)
 			CoUninitialize();
 
-		return retVal;
+		return dlgRes ? std::wstring(buffer.c_str()) : L"";
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
 	[[nodiscard]] std::string SaveFileWinGUI(const std::string& title,
-											const std::string& defaultPathAndFile,
-											const std::vector<std::pair<std::string, std::string>>& filterPatterns,
-											const bool allFiles)
+											 const std::string& defaultPathAndFile,
+											 const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+											 const bool allFiles)
 	{
 		std::vector<std::pair<std::wstring, std::wstring>> wFilterPatterns(filterPatterns.size());
 		for (uint32_t i = 0; i < wFilterPatterns.size(); i++)
@@ -320,20 +306,15 @@ namespace
 	//-------------------------------------------------------------------------------------------------------------------//
 
 	[[nodiscard]] std::vector<std::wstring> OpenFileW(const std::wstring& title,
-													const std::wstring& defaultPathAndFile,
-													const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
-													const bool allowMultipleSelects,
-													const bool allFiles)
+													  const std::wstring& defaultPathAndFile,
+													  const std::vector<std::pair<std::wstring, std::wstring>>& filterPatterns,
+													  const bool allowMultipleSelects,
+													  const bool allFiles)
 	{
 		HRESULT hResult = CoInitializeEx(nullptr, 0);
 
 		const std::wstring dirName = GetPathWithoutFinalSlashW(defaultPathAndFile);
 		std::wstring buffer = GetLastNameW(defaultPathAndFile);
-
-		if (allowMultipleSelects)
-			buffer.resize(MaxMultipleFiles * MaxPathOrCMD + 1);
-		else
-			buffer.resize(MaxPathOrCMD + 1);
 
 		std::wstring filterPatternsStr = L"All Files\n*.*\n";
 		if (!filterPatterns.empty())
@@ -371,35 +352,28 @@ namespace
 
 		std::replace(filterPatternsStr.begin(), filterPatternsStr.end(), L'\n', L'\0');
 
+		if (allowMultipleSelects)
+			buffer.resize(MaxMultipleFiles * MaxPathOrCMD + 1);
+		else
+			buffer.resize(MaxPathOrCMD + 1);
+
 		OPENFILENAMEW ofn{};
 		ofn.lStructSize = sizeof(OPENFILENAMEW);
 		ofn.hwndOwner = GetForegroundWindow();
-		ofn.hInstance = nullptr;
-		ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.data();
-		ofn.lpstrCustomFilter = nullptr;
-		ofn.nMaxCustFilter = 0;
+		ofn.lpstrFilter = filterPatternsStr.empty() ? nullptr : filterPatternsStr.c_str();
 		ofn.nFilterIndex = 1;
 		ofn.lpstrFile = buffer.data();
-
-		ofn.nMaxFile = static_cast<uint32_t>(buffer.size());
-		ofn.lpstrFileTitle = nullptr;
-		ofn.nMaxFileTitle = MaxPathOrCMD / 2;
-		ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.data();
-		ofn.lpstrTitle = title.empty() ? nullptr : title.data();
+		ofn.nMaxFile = static_cast<DWORD>(buffer.size());
+		ofn.lpstrInitialDir = dirName.empty() ? nullptr : dirName.c_str();
+		ofn.lpstrTitle = title.empty() ? nullptr : title.c_str();
 		ofn.Flags = OFN_EXPLORER | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-		ofn.nFileOffset = 0;
-		ofn.nFileExtension = 0;
-		ofn.lpstrDefExt = nullptr;
-		ofn.lCustData = 0L;
-		ofn.lpfnHook = nullptr;
-		ofn.lpTemplateName = nullptr;
 		if (allowMultipleSelects)
 			ofn.Flags |= OFN_ALLOWMULTISELECT;
 
+		const BOOL dlgRes = GetOpenFileNameW(&ofn);
+
 		std::vector<std::wstring> paths{};
-		if (!GetOpenFileNameW(&ofn))
-			buffer = L"";
-		else
+		if (dlgRes && !buffer.empty())
 		{
 			if (allowMultipleSelects)
 			{
@@ -430,10 +404,10 @@ namespace
 	//-------------------------------------------------------------------------------------------------------------------//
 
 	[[nodiscard]] std::vector<std::string> OpenFileWinGUI(const std::string& title,
-														const std::string& defaultPathAndFile,
-														const std::vector<std::pair<std::string, std::string>>& filterPatterns,
-														const bool allowMultipleSelects,
-														const bool allFiles)
+														  const std::string& defaultPathAndFile,
+														  const std::vector<std::pair<std::string, std::string>>& filterPatterns,
+														  const bool allowMultipleSelects,
+														  const bool allFiles)
 	{
 		std::vector<std::pair<std::wstring, std::wstring>> wFilterPatterns(filterPatterns.size());
 		for(uint32_t i = 0; i < wFilterPatterns.size(); ++i)
@@ -455,8 +429,7 @@ namespace
 			return {};
 
 		std::vector<std::string> paths(wPaths.size());
-		for (uint32_t i = 0; i < paths.size(); ++i)
-			paths[i] = UTF16To8(wPaths[i]);
+		std::transform(wPaths.begin(), wPaths.end(), paths.begin(), UTF16To8);
 
 		return paths;
 	}
@@ -470,29 +443,23 @@ namespace
 		HRESULT hResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
 		BROWSEINFOW info{};
-
 		info.hwndOwner = GetForegroundWindow();
-		info.pidlRoot = nullptr;
 		info.pszDisplayName = buffer.data();
-		info.lpszTitle = title.empty() ? nullptr : title.data();
+		info.lpszTitle = title.empty() ? nullptr : title.c_str();
 		if (hResult == S_OK || hResult == S_FALSE)
 			info.ulFlags = BIF_USENEWUI;
 		info.lpfn = BrowseCallbackProcW;
-		info.lParam = reinterpret_cast<LPARAM>(defaultPath.data());
+		info.lParam = reinterpret_cast<LPARAM>(defaultPath.c_str());
 		info.iImage = -1;
 
-		std::wstring retVal{};
 		LPITEMIDLIST lpItem = SHBrowseForFolderW(&info);
 		if(lpItem)
-		{
 			SHGetPathFromIDListW(lpItem, buffer.data());
-			retVal = buffer;
-		}
 
 		if (hResult == S_OK || hResult == S_FALSE)
 			CoUninitialize();
 
-		return retVal;
+		return std::wstring(buffer.c_str());
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
@@ -585,9 +552,9 @@ namespace
 	//-------------------------------------------------------------------------------------------------------------------//
 
 	[[nodiscard]] MD::Selection ShowMsgBoxWinGUI(const std::string& title,
-												const std::string& message,
-												const MD::Style style,
-												const MD::Buttons buttons)
+												 const std::string& message,
+												 const MD::Style style,
+												 const MD::Buttons buttons)
 	{
 		std::wstring wTitle{};
 		if (!title.empty())
@@ -633,7 +600,7 @@ namespace
 
 	[[nodiscard]] bool GetEnvDISPLAY()
 	{
-		return std::getenv("DISPLAY");
+		return std::getenv("DISPLAY") || std::getenv("WAYLAND_DISPLAY");
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
