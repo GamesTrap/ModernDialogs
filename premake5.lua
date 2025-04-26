@@ -1,5 +1,8 @@
 workspace "ModernDialogs"
-	configurations { "Debug32", "Release32", "Debug64", "Release64" }
+	configurations { "Debug", "Release" }
+	platforms { "x86", "x86_64"}
+
+	defaultplatform "x86_64"
 
 	startproject "Example"
 
@@ -8,10 +11,10 @@ workspace "ModernDialogs"
 		"MultiProcessorCompile"
 	}
 
-	filter "configurations:*32"
+	filter "platforms:x86"
     	architecture "x86"
 
-    filter "configurations:*64"
+    filter "platforms:x86_64"
     	architecture "x86_64"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
