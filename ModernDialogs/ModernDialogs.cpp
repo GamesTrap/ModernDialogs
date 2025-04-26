@@ -220,7 +220,7 @@ namespace
 
 		if (!filterPatterns.empty())
 		{
-			const auto& [frontName, frontExtensions] = filterPattens.front();
+			const auto& [frontName, frontExtensions] = filterPatterns.front();
 
 			defaultExtension = frontExtensions;
 			filterPatternsStr.clear();
