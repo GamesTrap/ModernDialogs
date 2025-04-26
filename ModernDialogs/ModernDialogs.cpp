@@ -27,6 +27,7 @@ SOFTWARE.
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <array>
 
 #ifdef _WIN32
 #ifndef _WIN32_WINNT
@@ -613,19 +614,19 @@ namespace
 
 	[[nodiscard]] bool DetectPresence(const std::string& executable)
 	{
-		std::string buffer(MaxPathOrCMD, '\0');
-		bool isPresent = false;
+		std::array<char, 128> buffer{};
+		std::string output{};
 
-		const std::string testedString = "which " + executable + " 2>/dev/null ";
-		FILE* const in = popen(testedString.c_str(), "r");
-		if((fgets(buffer.data(), buffer.size(), in) != nullptr)
-			&& (buffer.find_first_of(':') == std::string::npos) && (buffer.find("no ") == std::string::npos))
-		{
-			isPresent = true;
-		}
+		const std::string cmd = "which " + executable + " 2>/dev/null ";
+
+		FILE* const in = popen(cmd.c_str(), "r");
+
+		while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+			output += buffer.data();
 
 		pclose(in);
-		return isPresent;
+
+		return output.find_first_of(':') == std::string::npos && output.find("no ") == std::string::npos;
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
@@ -684,28 +685,31 @@ namespace
 	[[nodiscard]] int32_t Zenity3Present()
 	{
 		static int32_t zenity3Present = -1;
-		std::string buffer(MaxPathOrCMD, '\0');
 
 		if(zenity3Present < 0)
 		{
 			zenity3Present = 0;
 			if(ZenityPresent())
 			{
+				std::array<char, 128> buffer{};
+				std::string output{};
 				FILE* const in = popen("zenity --version", "r");
-				if(fgets(buffer.data(), buffer.size(), in) != nullptr)
+
+				while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+					output += buffer.data();
+
+				if(std::stoi(output) >= 3)
 				{
-					if(std::stoi(buffer) >= 3)
-					{
-						zenity3Present = 3;
-						const int32_t temp = std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2));
-						if(temp >= 18)
-							zenity3Present = 5;
-						else if(temp >= 10)
-							zenity3Present = 4;
-					}
-					else if((std::stoi(buffer) == 2) && (std::stoi(buffer.substr(buffer.find_first_not_of('.') + 2)) >= 32))
-						zenity3Present = 2;
+					zenity3Present = 3;
+					const int32_t temp = std::stoi(output.substr(output.find_first_not_of('.') + 2));
+					if(temp >= 18)
+						zenity3Present = 5;
+					else if(temp >= 10)
+						zenity3Present = 4;
 				}
+				else if((std::stoi(output) == 2) && (std::stoi(output.substr(output.find_first_not_of('.') + 2)) >= 32))
+					zenity3Present = 2;
+
 				pclose(in);
 			}
 		}
@@ -794,15 +798,16 @@ namespace
 
 	[[nodiscard]] bool TryCommand(const std::string& command)
 	{
-		bool success = false;
+		std::array<char, 128> buffer{};
+		std::string output{};
 
-		std::string buffer(MaxPathOrCMD, '\0');
 		FILE* const in = popen(command.data(), "r");
-		if(fgets(buffer.data(), buffer.size(), in) == nullptr)
-			success = true;
+		while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+			output += buffer.data();
 
 		pclose(in);
-		return success;
+
+		return !output.empty();
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
@@ -861,14 +866,17 @@ namespace
 			kdialogPresent = DetectPresence("kdialog");
 			if(kdialogPresent)
 			{
+				std::array<char, 128> buffer{};
+				std::string output{};
+
 				FILE* const in = popen("kdialog --attach 2>&1", "r");
-				std::string buffer(MaxPathOrCMD, '\0');
-				if(fgets(buffer.data(), buffer.size(), in) != nullptr)
-				{
-					if (buffer.find("Unknown") == std::string::npos)
-						kdialogPresent = 2;
-				}
+				while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+					output += buffer.data();
+
 				pclose(in);
+
+				if (output.find("Unknown") == std::string::npos)
+					kdialogPresent = 2;
 			}
 		}
 
@@ -1696,25 +1704,17 @@ std::string MD::SaveFile(const std::string& title,
 	else if(TKinter3Present())
 		dialogString = GetTKinter3SaveFileCommand(title, defaultPathAndFile, filterPatterns, allFiles);
 
-	FILE* in = nullptr;
-	if(!(in = popen(dialogString.data(), "r")))
+	FILE* in = popen(dialogString.data(), "r");
+	if(in == nullptr)
 		return "";
-	std::string buffer(MaxPathOrCMD, '\0');
-	while (fgets(buffer.data(), buffer.size(), in) != nullptr){}
+
+	std::array<char, 128> buffer{};
+	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+		path += buffer.data();
 	pclose(in);
-	uint32_t off = 0;
-	for(const auto& c : buffer)
-	{
-		if(c == '\0')
-			break;
-		off++;
-	}
-	buffer.resize(off);
-	if (!buffer.empty() && buffer[buffer.size() - 1] == '\n')
-		buffer.pop_back();
-	if (buffer.empty())
-		return "";
-	path = buffer;
+
+	if (!path.empty() && path.back() == '\n')
+		path.pop_back();
 #endif
 
 	if (path.empty())
@@ -1771,81 +1771,49 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 	else if(TKinter3Present())
 		dialogString = GetTKinter3OpenFileCommand(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 
-	std::string buffer;
-	if (allowMultipleSelects)
-		buffer.resize(MaxMultipleFiles * MaxPathOrCMD + 1);
-	else
-		buffer.resize(MaxPathOrCMD + 1);
-
-	FILE* in = nullptr;
-	if(!(in = popen(dialogString.data(), "r")))
-	{
-		buffer = {};
+	FILE* in = popen(dialogString.data(), "r");
+	if(in == nullptr)
 		return {};
-	}
-	char* data = buffer.data();
-	while(fgets(data, &buffer[buffer.size() - 1] - data, in) != nullptr)
-	{
-		uint64_t off = 0;
-		for(const char& c : buffer)
-		{
-			if(c == '\0')
-				break;
-			off++;
-		}
-		data = buffer.data() + off;
-	}
+
+	std::array<char, 128> buffer{};
+	std::string tmp{};
+	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+		tmp += buffer.data();
+
 	pclose(in);
-	uint32_t off = 0;
-	for(const auto& c : buffer)
-	{
-		if(c == '\0')
-			break;
-		off++;
-	}
-	buffer.resize(off);
 
-	if(!buffer.empty() && buffer[buffer.size() - 1] == '\n')
-		buffer.pop_back();
+	if(!tmp.empty() && tmp.back() == '\n')
+		tmp.pop_back();
 
-	if(wasKDialog && allowMultipleSelects)
+	char separator = '|';
+	if(wasKDialog)
+		separator = '\n';
+
+	if(!tmp.empty())
 	{
-		buffer += '\n';
-		std::size_t pos = 0;
-		while((pos = buffer.find('\n')) != std::string::npos)
+		if(allowMultipleSelects)
 		{
-			std::string token = buffer.substr(0, pos);
-			paths.push_back(token);
-			buffer.erase(0, pos + 1);
+			tmp += separator;
+			std::size_t pos = 0;
+			while((pos = tmp.find(separator)) != std::string::npos)
+			{
+				std::string token = tmp.substr(0, pos);
+				paths.push_back(std::move(token));
+				tmp.erase(0, pos + 1);
+			}
 		}
+		else
+			paths.push_back(tmp);
 	}
-	else if(allowMultipleSelects)
-	{
-		buffer += '|';
-		std::size_t pos = 0;
-		while((pos = buffer.find('|')) != std::string::npos)
-		{
-			std::string token = buffer.substr(0, pos);
-			paths.push_back(token);
-			buffer.erase(0, pos + 1);
-		}
-	}
-	else if(!allowMultipleSelects)
-		paths.push_back(buffer);
 #endif
 
 	if (paths.empty())
 		return {};
-	if (allowMultipleSelects && paths.size() > 1)
+	for(auto it = paths.begin(); it != paths.end(); ++it)
 	{
-		for(auto it = paths.begin(); it != paths.end(); ++it)
-		{
-			if(!FileExists(*it))
-				it = paths.erase(it);
-		}
+		if(!FileExists(*it))
+			it = paths.erase(it);
 	}
-	else if (!FileExists(paths[0]))
-		return {};
 
 	return paths;
 }
@@ -1885,7 +1853,6 @@ std::string MD::SelectFolder(const std::string& title, const std::string& defaul
 #ifdef _WIN32
 	path = SelectFolderWinGUI(title, defaultPath);
 #else
-	std::string buffer(MaxPathOrCMD, '\0');
 	std::string dialogString;
 	if(KDialogPresent())
 		dialogString = GetKDialogSelectFolderCommand(title, defaultPath);
@@ -1902,26 +1869,19 @@ std::string MD::SelectFolder(const std::string& title, const std::string& defaul
 	else if(TKinter3Present())
 		dialogString = GetTKinter3SelectFolderCommand(title, defaultPath);
 
-	FILE* in = nullptr;
-	if(!(in = popen(dialogString.data(), "r")))
+	FILE* in = popen(dialogString.data(), "r");
+	if(in == nullptr)
 		return "";
+
+	std::array<char, 128> buffer{};
 	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
-	{}
-	uint32_t off = 0;
-	for(const auto& c : buffer)
-	{
-		if(c == '\0')
-			break;
-		off++;
-	}
-	buffer.resize(off);
+		path += buffer.data();
 
-	if(!buffer.empty() && buffer[buffer.size() - 1] == '\n')
-		buffer.pop_back();
+	if(!path.empty() && path.back() == '\n')
+		path.pop_back();
 
-	if(!DirExists(buffer))
+	if(!DirExists(path))
 		return "";
-	path = buffer;
 #endif
 
 	if (path.empty())
@@ -1963,25 +1923,20 @@ MD::Selection MD::ShowMsgBox(const std::string& title,
 	else if(TKinter3Present())
 		dialogString = GetTKinter3MsgBoxCommand(title, message, style, buttons);
 
-	std::string buffer(1024, '\0');
-	FILE* in = nullptr;
-	if(!(in = popen(dialogString.data(), "r")))
+	std::array<char, 128> buffer{};
+	std::string tmp{};
+
+	FILE* in = popen(dialogString.data(), "r");
+	if(in == nullptr)
 		return {};
+
 	while(fgets(buffer.data(), buffer.size(), in) != nullptr)
-	{}
-	uint32_t off = 0;
-	for(const auto& c : buffer)
-	{
-		if(c == '\0')
-			break;
-		off++;
-	}
-	buffer.resize(off);
+		tmp += buffer.data();
 
-	if(buffer[buffer.size() - 1] == '\n')
-		buffer.pop_back();
+	if(!tmp.empty() && tmp.back() == '\n')
+		tmp.pop_back();
 
-	if (buffer == "1")
+	if (tmp == "1")
 	{
 		if (buttons == MD::Buttons::YesNo)
 			selection = MD::Selection::Yes;
@@ -1992,7 +1947,7 @@ MD::Selection MD::ShowMsgBox(const std::string& title,
         else if (buttons == MD::Buttons::Quit)
             selection = MD::Selection::Quit;
 	}
-	else if (buffer == "0")
+	else if (tmp == "0")
 	{
 		if (buttons == MD::Buttons::YesNo)
 			selection = MD::Selection::No;
