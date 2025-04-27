@@ -7,30 +7,112 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-linux:
-    name: Build Linux Source
+  build-linux-x86_64-gcc14-cpp17:
+    name: Build Linux Source x86_64 C++17
     runs-on: ubuntu-latest
     env:
-      CC: gcc-10
-      CXX: g++-10
+      CC: gcc-14
+      CXX: g++-14
     steps:
     - uses: actions/checkout@v3
-    - name: Install g++-multilib
-      run: sudo apt-get install -y g++-10-multilib
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
-      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh && cd ..
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++17 && cd ..
     - name: Compile code
-      run: make all
-  build-windows:
-    name: Build Windows Source
+      run: make config=release_x86_64 all
+  build-linux-x86_64-gcc14-cpp20:
+    name: Build Linux Source x86_64 C++20
+    runs-on: ubuntu-latest
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
+    - name: Set Execute flags
+      run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
+    - name: Generate Make files
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++17 && cd ..
+    - name: Compile code
+      run: make config=release_x86_64 all
+  build-linux-x86-gcc14-cpp17:
+    name: Build Linux Source x86 C++17
+    runs-on: ubuntu-latest
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
+    - name: Set Execute flags
+      run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
+    - name: Generate Make files
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++17 && cd ..
+    - name: Compile code
+      run: make config=release_x86 all
+  build-linux-x86-gcc14-cpp20:
+    name: Build Linux Source x86 C++20
+    runs-on: ubuntu-latest
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
+    - name: Set Execute flags
+      run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
+    - name: Generate Make files
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++17 && cd ..
+    - name: Compile code
+      run: make config=release_x86 all
+  build-windows-x86_64-cpp17:
+    name: Build Windows Source x86_64 C++17
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v1.1
     - name: Generate Project files
-      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat && cd ..
+      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++17 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
+  build-windows-x86_64-cpp20:
+    name: Build Windows Source x86_64 C++20
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+    - name: Generate Project files
+      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++20 && cd ..
+    - name: Compile code
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
+  build-windows-x86-cpp17:
+    name: Build Windows Source x86 C++17
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+    - name: Generate Project files
+      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++17 && cd ..
+    - name: Compile code
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
+  build-windows-x86-cpp20:
+    name: Build Windows Source x86 C++20
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+    - name: Generate Project files
+      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++20 && cd ..
+    - name: Compile code
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
+

@@ -1,5 +1,8 @@
 workspace "ModernDialogs"
-	configurations { "Debug32", "Release32", "Debug64", "Release64" }
+	configurations { "Debug", "Release" }
+	platforms { "x86", "x86_64"}
+
+	defaultplatform "x86_64"
 
 	startproject "Example"
 
@@ -8,22 +11,38 @@ workspace "ModernDialogs"
 		"MultiProcessorCompile"
 	}
 
-	filter "configurations:*32"
+	filter "platforms:x86"
     	architecture "x86"
 
-    filter "configurations:*64"
+    filter "platforms:x86_64"
     	architecture "x86_64"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+
+newoption {
+	trigger = "std",
+	value = "C++XX",
+	description = "Select the C++ standard to use for compilation, defaults to C++-17",
+	allowed = {
+		{ "C++latest", "Latest C++ standard availble for the toolset"},
+		{ "C++17", "ISO C++17 standard"},
+		{ "C++2a", "ISO C++20 draft"},
+		{ "C++20", "ISO C++20 standard"},
+		{ "C++2b", "ISO C++23 draft"},
+		{ "C++23", "ISO C++23 standard"},
+	},
+	default = "C++17"
+}
 
 project "ModernDialogs"
 	location "ModernDialogs"
 	kind "StaticLib"
 	language "C++"
 	staticruntime "off"
-	cppdialect "C++17"
 	systemversion "latest"
 	warnings "Extra"
+
+	cppdialect (_OPTIONS["std"] or "C++17")
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.group}/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.group}/%{prj.name}")

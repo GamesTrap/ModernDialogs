@@ -86,7 +86,7 @@ Then, execute one of the generator scripts in the GeneratorScripts folder.
 
 MIT License
 
-Copyright (c) 2020-2023 Jan "GamesTrap" Schürkamp
+Copyright (c) 2020-2025 Jan "GamesTrap" Schürkamp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
