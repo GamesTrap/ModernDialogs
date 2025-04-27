@@ -584,7 +584,7 @@ namespace
 		std::array<char, 128> buffer{};
 		std::string output{};
 
-		const std::string cmd = "which " + executable + " 2>/dev/null ";
+		const std::string cmd = "command -v " + executable + " 2>/dev/null";
 
 		FILE* const in = popen(cmd.c_str(), "r");
 
@@ -593,14 +593,25 @@ namespace
 
 		pclose(in);
 
-		return output.find_first_of(':') == std::string::npos && output.find("no ") == std::string::npos;
+		return !output.empty() && output.find(':') == std::string::npos && output.find("no ") == std::string::npos;
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
-	[[nodiscard]] bool GetEnvDISPLAY()
+	[[nodiscard]] int32_t GetEnvDISPLAY()
 	{
-		return std::getenv("DISPLAY") || std::getenv("WAYLAND_DISPLAY");
+		static int32_t returnValue = -1;
+
+		if(returnValue < 0)
+		{
+			returnValue = 0;
+			if(std::getenv("DISPLAY"))
+				returnValue += 1;
+			if(std::getenv("WAYLAND_DISPLAY"))
+				returnValue += 2;
+		}
+
+		return returnValue;
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
@@ -627,12 +638,37 @@ namespace
 
 	[[nodiscard]] bool XPropPresent()
 	{
+		static bool xpropReady = false;
 		static int32_t xpropPresent = -1;
 
 		if (xpropPresent < 0)
-			xpropPresent = DetectPresence("xprop");
+		{
+			if(GetEnvDISPLAY() & 1)
+				xpropPresent = DetectPresence("xprop");
+			else
+				xpropPresent = 0;
+		}
 
-		return xpropPresent && GraphicMode();
+		if(!xpropPresent)
+			return 0;
+
+		if(!xpropReady)
+		{
+			FILE* const in = popen("xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW", "r");
+
+			std::array<char, 128> buffer{};
+			std::string output{};
+
+			while(fgets(buffer.data(), buffer.size(), in) != nullptr)
+				output += buffer.data();
+
+			pclose(in);
+
+			if(output.find("not found") == std::string::npos)
+				xpropReady = true;
+		}
+
+		return xpropReady && GraphicMode();
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
@@ -665,7 +701,7 @@ namespace
 				while(fgets(buffer.data(), buffer.size(), in) != nullptr)
 					output += buffer.data();
 
-				if(std::stoi(output) >= 3)
+				if(!output.empty() && std::stoi(output) >= 3)
 				{
 					zenity3Present = 3;
 					const int32_t temp = std::stoi(output.substr(output.find_first_not_of('.') + 2));
@@ -674,7 +710,7 @@ namespace
 					else if(temp >= 10)
 						zenity3Present = 4;
 				}
-				else if((std::stoi(output) == 2) && (std::stoi(output.substr(output.find_first_not_of('.') + 2)) >= 32))
+				else if(!output.empty() && (std::stoi(output) == 2) && (std::stoi(output.substr(output.find_first_not_of('.') + 2)) >= 32))
 					zenity3Present = 2;
 
 				pclose(in);
@@ -788,7 +824,7 @@ namespace
 			tkinter3Present = 0;
 			if(Python3Present())
 			{
-				static const std::string pythonParams = "-S -c \"try:\n\timport tkinter;\nexcept:\n\tprint(0);\"";
+				static const std::string pythonParams = "-S -c \"try:\n\timport tkinter;\n\tprint(1);\nexcept:\n\tpass\"";
 				const std::string pythonCommand = Python3Name + " " + pythonParams;
 				tkinter3Present = TryCommand(pythonCommand);
 			}
@@ -852,7 +888,7 @@ namespace
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
-	constexpr std::string_view XPropCmd = " --attach=$(sleep .01;xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+	constexpr std::string_view XPropCmd = " --attach=$(sleep .01;printf \"%d\" $(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2))";
 
 	//-------------------------------------------------------------------------------------------------------------------//
 
@@ -1007,7 +1043,7 @@ namespace
 		                                            const std::vector<std::pair<std::string, std::string>>& filterPatterns,
 		                                            const bool allFiles)
 	{
-		return GetYadBaseFileCommand(title, defaultPathAndFile, filterPatterns, allFiles, "--file-selection --save --confirm-overwrite");
+		return GetYadBaseFileCommand(title, defaultPathAndFile, filterPatterns, allFiles, "--file --save --confirm-overwrite");
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
@@ -1018,7 +1054,7 @@ namespace
 													const bool allowMultipleSelects,
 		                                            const bool allFiles)
 	{
-		std::string dialogAction = "--file-selection";
+		std::string dialogAction = "--file";
 		if(allowMultipleSelects)
 			dialogAction += " --multiple";
 
@@ -1249,7 +1285,7 @@ namespace
 	{
 		std::string dialogString = "qarma";
 		if(XPropPresent())
-			dialogString += " --attach$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+			dialogString += XPropCmd;
 
 		return dialogString + GetGenericSaveFileCommandPart(title, defaultPathAndFile, filterPatterns, allFiles);
 	}
@@ -1264,7 +1300,7 @@ namespace
 	{
 		std::string dialogString = "qarma";
 		if(XPropPresent())
-			dialogString += " --attach$(xprop -root 32x '\t$0' _NET_ACTIVE_WINDOW | cut -f 2)";
+			dialogString += XPropCmd;
 
 		return dialogString + GetGenericOpenFileCommandPart(title, defaultPathAndFile, filterPatterns, allowMultipleSelects, allFiles);
 	}
@@ -1323,7 +1359,7 @@ namespace
 
 	[[nodiscard]] std::string GetYadSelectFolderCommand(const std::string& title, const std::string& defaultPath)
 	{
-		return GetYadBaseFileCommand(title, defaultPath, {}, false, "--file-section --directory");
+		return GetYadBaseFileCommand(title, defaultPath, {}, false, "--file --directory");
 	}
 
 	//-------------------------------------------------------------------------------------------------------------------//
@@ -1411,6 +1447,16 @@ namespace
         if(!message.empty())
             dialogString += " --text=\"" + message + "\"";
 
+		dialogString += " --image=dialog-";
+		if(style == MD::Style::Error)
+			dialogString += "error";
+		else if(style == MD::Style::Warning)
+			dialogString += "warning";
+		else if(style == MD::Style::Question)
+			dialogString += "question";
+		else
+			dialogString += "information";
+
         dialogString += " 2>/dev/null ";
         dialogString += ");echo $?";
 
@@ -1475,7 +1521,7 @@ namespace
 														  const std::string& commandAction,
 														  const std::string& iconCommand = "")
 	{
-		std::string dialogString = "szAnswer=$(" + commandAction;
+		std::string dialogString = "szAnswer=$(" + commandAction + " --";
 
 		if(buttons == MD::Buttons::OKCancel)
             dialogString += "question --ok-label=OK --cancel-label=Cancel";
@@ -1776,10 +1822,12 @@ std::vector<std::string> MD::OpenFile(const std::string& title,
 
 	if (paths.empty())
 		return {};
-	for(auto it = paths.begin(); it != paths.end(); ++it)
+	for(auto it = paths.begin(); it != paths.end();)
 	{
 		if(!FileExists(*it))
 			it = paths.erase(it);
+		else
+			++it;
 	}
 
 	return paths;
@@ -1889,6 +1937,8 @@ MD::Selection MD::ShowMsgBox(const std::string& title,
 		dialogString = GetYadMsgBoxCommand(title, message, style, buttons);
 	else if(TKinter3Present())
 		dialogString = GetTKinter3MsgBoxCommand(title, message, style, buttons);
+	else
+		selection = Selection::None;
 
 	std::array<char, 128> buffer{};
 	std::string tmp{};
@@ -1925,8 +1975,6 @@ MD::Selection MD::ShowMsgBox(const std::string& title,
         else if (buttons == MD::Buttons::Quit)
             selection = MD::Selection::Quit;
 	}
-	else
-		selection = MD::Selection::Quit;
 #endif
 
 	return selection;
