@@ -15,8 +15,8 @@ jobs:
       CXX: g++-14
     steps:
     - uses: actions/checkout@v3
-    - name: Install g++-14
-      run: sudo apt-get install -y g++-14
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
@@ -31,8 +31,8 @@ jobs:
       CXX: g++-14
     steps:
     - uses: actions/checkout@v3
-    - name: Install g++-14
-      run: sudo apt-get install -y g++-14
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
@@ -47,8 +47,8 @@ jobs:
       CXX: g++-14
     steps:
     - uses: actions/checkout@v3
-    - name: Install g++-14
-      run: sudo apt-get install -y g++-14
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
@@ -63,8 +63,8 @@ jobs:
       CXX: g++-14
     steps:
     - uses: actions/checkout@v3
-    - name: Install g++-14
-      run: sudo apt-get install -y g++-14
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
