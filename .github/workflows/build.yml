@@ -37,7 +37,23 @@ jobs:
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
-      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++17 && cd ..
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++20 && cd ..
+    - name: Compile code
+      run: make config=release_x86_64 all
+  build-linux-x86_64-gcc14-cpp23:
+    name: Build Linux Source x86_64 C++23
+    runs-on: ubuntu-latest
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
+    - name: Set Execute flags
+      run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
+    - name: Generate Make files
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++13 && cd ..
     - name: Compile code
       run: make config=release_x86_64 all
   build-linux-x86-gcc14-cpp17:
@@ -69,7 +85,23 @@ jobs:
     - name: Set Execute flags
       run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
     - name: Generate Make files
-      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++17 && cd ..
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++20 && cd ..
+    - name: Compile code
+      run: make config=release_x86 all
+  build-linux-x86-gcc14-cpp23:
+    name: Build Linux Source x86 C++23
+    runs-on: ubuntu-latest
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+    - name: Install g++-14-multilib
+      run: sudo apt-get install -y g++-14-multilib
+    - name: Set Execute flags
+      run: chmod +x GeneratorScripts/GenerateProjectMake.sh && chmod +x libs/premake5/linux/premake5
+    - name: Generate Make files
+      run: cd GeneratorScripts/ && ./GenerateProjectMake.sh --std=C++23 && cd ..
     - name: Compile code
       run: make config=release_x86 all
   build-windows-x86_64-cpp17:
@@ -94,6 +126,17 @@ jobs:
       run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++20 && cd ..
     - name: Compile code
       run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.slnx'
+  build-windows-x86_64-cpp23:
+    name: Build Windows Source x86_64 C++23
+    runs-on: windows-2025-vs2026
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 #v3.0.0
+    - name: Generate Project files
+      run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++23 && cd ..
+    - name: Compile code
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.slnx'
   build-windows-x86-cpp17:
     name: Build Windows Source x86 C++17
     runs-on: windows-2025-vs2026
@@ -114,6 +157,17 @@ jobs:
       uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 #v3.0.0
     - name: Generate Project files
       run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++20 && cd ..
+    - name: Compile code
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.slnx'
+  build-windows-x86-cpp23:
+    name: Build Windows Source x86 C++23
+    runs-on: windows-2025-vs2026
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 #v3.0.0
+    - name: Generate Project files
+      run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++23 && cd ..
     - name: Compile code
       run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.slnx'
 
