@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build-linux-x86_64-gcc14-cpp17:
@@ -14,7 +15,7 @@ jobs:
       CC: gcc-14
       CXX: g++-14
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Install g++-14-multilib
       run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
@@ -30,7 +31,7 @@ jobs:
       CC: gcc-14
       CXX: g++-14
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Install g++-14-multilib
       run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
@@ -46,7 +47,7 @@ jobs:
       CC: gcc-14
       CXX: g++-14
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Install g++-14-multilib
       run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
@@ -62,7 +63,7 @@ jobs:
       CC: gcc-14
       CXX: g++-14
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Install g++-14-multilib
       run: sudo apt-get install -y g++-14-multilib
     - name: Set Execute flags
@@ -73,46 +74,46 @@ jobs:
       run: make config=release_x86 all
   build-windows-x86_64-cpp17:
     name: Build Windows Source x86_64 C++17
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 #v3.0.0
     - name: Generate Project files
-      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++17 && cd ..
+      run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++17 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
   build-windows-x86_64-cpp20:
     name: Build Windows Source x86_64 C++20
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 #v3.0.0
     - name: Generate Project files
-      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++20 && cd ..
+      run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++20 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
   build-windows-x86-cpp17:
     name: Build Windows Source x86 C++17
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 #v3.0.0
     - name: Generate Project files
-      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++17 && cd ..
+      run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++17 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
   build-windows-x86-cpp20:
     name: Build Windows Source x86 C++20
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
     - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 #v3.0.0
     - name: Generate Project files
-      run: cd GeneratorScripts && .\GenerateProjectVS2022.bat --std=C++20 && cd ..
+      run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++20 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
 
