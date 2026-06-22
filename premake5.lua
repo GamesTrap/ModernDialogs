@@ -6,10 +6,7 @@ workspace "ModernDialogs"
 
 	startproject "Example"
 
-	flags
-	{
-		"MultiProcessorCompile"
-	}
+	multiprocessorcompile "On"
 
 	filter "platforms:x86"
     	architecture "x86"
