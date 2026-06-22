@@ -27,6 +27,8 @@ newoption {
 		{ "C++20", "ISO C++20 standard"},
 		{ "C++2b", "ISO C++23 draft"},
 		{ "C++23", "ISO C++23 standard"},
+		{ "C++2c", "ISO C++26 draft"},
+		{ "C++26", "ISO C++26 standard"},
 	},
 	default = "C++17"
 }
