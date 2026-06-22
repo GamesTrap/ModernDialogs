@@ -82,7 +82,7 @@ jobs:
     - name: Generate Project files
       run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++17 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.slnx'
   build-windows-x86_64-cpp20:
     name: Build Windows Source x86_64 C++20
     runs-on: windows-2025-vs2026
@@ -93,7 +93,7 @@ jobs:
     - name: Generate Project files
       run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++20 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=x64 ModernDialogs.slnx'
   build-windows-x86-cpp17:
     name: Build Windows Source x86 C++17
     runs-on: windows-2025-vs2026
@@ -104,7 +104,7 @@ jobs:
     - name: Generate Project files
       run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++17 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.slnx'
   build-windows-x86-cpp20:
     name: Build Windows Source x86 C++20
     runs-on: windows-2025-vs2026
@@ -115,5 +115,5 @@ jobs:
     - name: Generate Project files
       run: cd GeneratorScripts && .\GenerateProjectVS2026.bat --std=C++20 && cd ..
     - name: Compile code
-      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.sln'
+      run: '"C:\\Program Files\\Microsoft Visual Studio\\2026\\Enterprise\\Common7\\Tools\\VsDevCmd.bat" && msbuild /m /p:Configuration=Release /p:Platform=Win32 ModernDialogs.slnx'
 
